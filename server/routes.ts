@@ -227,6 +227,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.patch("/api/circuits/:id/update-circuit-id", async (req, res) => {
+    try {
+      const circuit = await storage.getCircuit(req.params.id);
+      if (!circuit) {
+        return res.status(404).json({ error: "Circuit not found" });
+      }
+      
+      const { circuitId } = req.body;
+      if (!circuitId) {
+        return res.status(400).json({ error: "Circuit ID is required" });
+      }
+      
+      // Validate and parse new circuit ID to get fiber count
+      let newFiberCount: number;
+      try {
+        newFiberCount = parseCircuitId(circuitId);
+      } catch (error) {
+        return res.status(400).json({ 
+          error: `Invalid circuit ID format. Expected format: "prefix,start-end" (e.g., "lg,33-36")` 
+        });
+      }
+      
+      // Update the circuit ID
+      await storage.updateCircuit(req.params.id, { circuitId });
+      
+      // Get all circuits for this cable to recalculate fiber ranges
+      const allCircuits = await storage.getCircuitsByCableId(circuit.cableId);
+      const cable = await storage.getCable(circuit.cableId);
+      if (!cable) {
+        return res.status(404).json({ error: "Cable not found" });
+      }
+      
+      // Recalculate fiber ranges for all circuits
+      let currentFiberStart = 1;
+      for (let i = 0; i < allCircuits.length; i++) {
+        const circ = allCircuits[i];
+        const fiberCount = parseCircuitId(circ.circuitId);
+        const fiberEnd = currentFiberStart + fiberCount - 1;
+        
+        // Check if exceeds cable capacity
+        if (fiberEnd > cable.fiberCount) {
+          return res.status(400).json({ 
+            error: `Circuit requires ${fiberCount} fibers but only ${cable.fiberCount - currentFiberStart + 1} fibers remaining in cable` 
+          });
+        }
+        
+        await storage.updateCircuit(circ.id, {
+          fiberStart: currentFiberStart,
+          fiberEnd: fiberEnd,
+        });
+        
+        currentFiberStart = fiberEnd + 1;
+      }
+      
+      const updatedCircuit = await storage.getCircuit(req.params.id);
+      res.json(updatedCircuit);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update circuit ID" });
+    }
+  });
+
+  app.patch("/api/circuits/:id/move", async (req, res) => {
+    try {
+      const circuit = await storage.getCircuit(req.params.id);
+      if (!circuit) {
+        return res.status(404).json({ error: "Circuit not found" });
+      }
+      
+      const { direction } = req.body;
+      if (direction !== "up" && direction !== "down") {
+        return res.status(400).json({ error: "Direction must be 'up' or 'down'" });
+      }
+      
+      // Get all circuits for this cable
+      const allCircuits = await storage.getCircuitsByCableId(circuit.cableId);
+      const currentIndex = allCircuits.findIndex(c => c.id === circuit.id);
+      
+      if (currentIndex === -1) {
+        return res.status(404).json({ error: "Circuit not found in cable" });
+      }
+      
+      // Check if move is valid
+      if (direction === "up" && currentIndex === 0) {
+        return res.status(400).json({ error: "Cannot move first circuit up" });
+      }
+      if (direction === "down" && currentIndex === allCircuits.length - 1) {
+        return res.status(400).json({ error: "Cannot move last circuit down" });
+      }
+      
+      // Swap positions
+      const swapIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+      const swapCircuit = allCircuits[swapIndex];
+      
+      await storage.updateCircuit(circuit.id, { position: swapIndex });
+      await storage.updateCircuit(swapCircuit.id, { position: currentIndex });
+      
+      // Get updated circuits and recalculate fiber ranges
+      const updatedCircuits = await storage.getCircuitsByCableId(circuit.cableId);
+      const cable = await storage.getCable(circuit.cableId);
+      if (!cable) {
+        return res.status(404).json({ error: "Cable not found" });
+      }
+      
+      // Recalculate fiber ranges for all circuits
+      let currentFiberStart = 1;
+      for (let i = 0; i < updatedCircuits.length; i++) {
+        const circ = updatedCircuits[i];
+        const fiberCount = parseCircuitId(circ.circuitId);
+        const fiberEnd = currentFiberStart + fiberCount - 1;
+        
+        await storage.updateCircuit(circ.id, {
+          fiberStart: currentFiberStart,
+          fiberEnd: fiberEnd,
+        });
+        
+        currentFiberStart = fiberEnd + 1;
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to move circuit" });
+    }
+  });
+
   app.delete("/api/circuits/:id", async (req, res) => {
     try {
       // Get the circuit being deleted to know its cable
