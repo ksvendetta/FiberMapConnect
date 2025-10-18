@@ -24,7 +24,7 @@ import { CableCard } from "@/components/CableCard";
 import { CableForm } from "@/components/CableForm";
 import { CableVisualization } from "@/components/CableVisualization";
 import { CircuitManagement } from "@/components/CircuitManagement";
-import { Plus, Cable as CableIcon, Workflow, FilePlus, History } from "lucide-react";
+import { Plus, Cable as CableIcon, Workflow, FilePlus, History, RotateCcw } from "lucide-react";
 import spliceLogo from "@assets/image_1760814059676.png";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -46,6 +46,7 @@ export default function Home() {
   const [cableDialogOpen, setCableDialogOpen] = useState(false);
   const [editingCable, setEditingCable] = useState<Cable | null>(null);
   const [startNewDialogOpen, setStartNewDialogOpen] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   const { data: cables = [], isLoading: cablesLoading } = useQuery<Cable[]>({
@@ -142,6 +143,22 @@ export default function Home() {
     },
   });
 
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("DELETE", "/api/reset", undefined);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cables"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/circuits"] });
+      setSelectedCableId(null);
+      setResetDialogOpen(false);
+      toast({ title: "All data has been reset" });
+    },
+    onError: () => {
+      toast({ title: "Failed to reset data", variant: "destructive" });
+    },
+  });
+
   const handleCableSubmit = (data: InsertCable) => {
     if (editingCable) {
       updateCableMutation.mutate({ id: editingCable.id, data });
@@ -190,6 +207,15 @@ export default function Home() {
               >
                 <History className="h-4 w-4 mr-2" />
                 History
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setResetDialogOpen(true)}
+                data-testid="button-reset"
+              >
+                <RotateCcw className="h-4 w-4 mr-2" />
+                Reset
               </Button>
               <Button
                 variant="default"
@@ -537,6 +563,29 @@ export default function Home() {
               data-testid="button-start-new-confirm"
             >
               Save & Start New
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+        <AlertDialogContent data-testid="dialog-reset-confirm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reset All Data</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete all cables and circuits without saving. 
+              This action cannot be undone.
+              Are you sure you want to continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-reset-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => resetMutation.mutate()}
+              data-testid="button-reset-confirm"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Reset All Data
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
