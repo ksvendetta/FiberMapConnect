@@ -254,6 +254,16 @@ export default function Home() {
               return fiberCount % 12 === 0;
             });
             
+            // Calculate total number of splice rows
+            const totalSpliceRows = allFullRibbons 
+              ? cableSplicedCircuits.reduce((sum, circuit) => {
+                  const fiberCount = circuit.fiberEnd - circuit.fiberStart + 1;
+                  return sum + (fiberCount / 12);
+                }, 0)
+              : cableSplicedCircuits.reduce((sum, circuit) => {
+                  return sum + (circuit.fiberEnd - circuit.fiberStart + 1);
+                }, 0);
+            
             return (
               <TabsContent key={distCable.id} value={`splice-${distCable.id}`}>
                 <Card>
@@ -273,7 +283,7 @@ export default function Home() {
                           <TableHeader>
                             <TableRow className="bg-muted/50">
                               <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50">Feed</TableHead>
-                              <TableHead className="text-center font-semibold">Count</TableHead>
+                              <TableHead className="text-center font-semibold">Splices : {totalSpliceRows}</TableHead>
                               <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50">Distribution</TableHead>
                             </TableRow>
                             <TableRow>
