@@ -125,7 +125,14 @@ export default function Home() {
       <header className="border-b">
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center gap-3">
-            <img src={spliceLogo} alt="Splice" className="h-6 w-6 invert dark:invert-0" />
+            <div className="h-6 w-6 overflow-hidden flex items-center justify-center">
+              <img 
+                src={spliceLogo} 
+                alt="Splice" 
+                className="h-12 w-12 invert dark:invert-0" 
+                style={{ objectFit: 'cover', objectPosition: 'center' }}
+              />
+            </div>
             <h1 className="text-xl font-semibold">Fiber Splice Manager</h1>
           </div>
         </div>
