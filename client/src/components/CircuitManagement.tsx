@@ -11,6 +11,20 @@ import { Plus, Trash2, CheckCircle2, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -26,6 +40,11 @@ interface CircuitManagementProps {
 export function CircuitManagement({ cable }: CircuitManagementProps) {
   const { toast } = useToast();
   const [circuitId, setCircuitId] = useState("");
+  const [feedSelectionDialog, setFeedSelectionDialog] = useState<{ open: boolean; circuitId: string | null }>({
+    open: false,
+    circuitId: null,
+  });
+  const [selectedFeedCableId, setSelectedFeedCableId] = useState<string>("");
 
   const { data: circuits = [], isLoading } = useQuery<Circuit[]>({
     queryKey: ["/api/circuits/cable", cable.id],
@@ -35,6 +54,14 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
       return response.json();
     },
   });
+
+  const { data: allCables = [] } = useQuery<Cable[]>({
+    queryKey: ["/api/cables"],
+  });
+
+  const feedCables = useMemo(() => {
+    return allCables.filter((c) => c.type === "Feed");
+  }, [allCables]);
 
   const createCircuitMutation = useMutation({
     mutationFn: async (data: InsertCircuit) => {
@@ -68,17 +95,48 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
   });
 
   const toggleSplicedMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return await apiRequest("PATCH", `/api/circuits/${id}/toggle-spliced`, undefined);
+    mutationFn: async ({ circuitId, feedCableId }: { circuitId: string; feedCableId?: string }) => {
+      return await apiRequest("PATCH", `/api/circuits/${circuitId}/toggle-spliced`, { feedCableId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/circuits/cable", cable.id] });
       queryClient.invalidateQueries({ queryKey: ["/api/circuits"] });
+      setFeedSelectionDialog({ open: false, circuitId: null });
+      setSelectedFeedCableId("");
     },
     onError: () => {
       toast({ title: "Failed to toggle splice status", variant: "destructive" });
     },
   });
+
+  const handleCheckboxChange = (circuit: Circuit, checked: boolean) => {
+    if (cable.type === "Distribution" && checked) {
+      // Opening splice dialog - need to select Feed cable
+      setFeedSelectionDialog({ open: true, circuitId: circuit.id });
+      setSelectedFeedCableId(circuit.feedCableId || "");
+    } else {
+      // Unchecking - just toggle without feed cable selection
+      toggleSplicedMutation.mutate({ circuitId: circuit.id });
+    }
+  };
+
+  const handleConfirmFeedSelection = () => {
+    if (!selectedFeedCableId) {
+      toast({
+        title: "Feed cable required",
+        description: "Please select a Feed cable for this splice",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (feedSelectionDialog.circuitId) {
+      toggleSplicedMutation.mutate({
+        circuitId: feedSelectionDialog.circuitId,
+        feedCableId: selectedFeedCableId,
+      });
+    }
+  };
 
   const handleAddCircuit = () => {
     if (!circuitId.trim()) {
@@ -214,7 +272,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
                         <TableCell>
                           <Checkbox
                             checked={circuit.isSpliced === 1}
-                            onCheckedChange={() => toggleSplicedMutation.mutate(circuit.id)}
+                            onCheckedChange={(checked) => handleCheckboxChange(circuit, checked as boolean)}
                             data-testid={`checkbox-spliced-${circuit.id}`}
                           />
                         </TableCell>
@@ -250,6 +308,47 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={feedSelectionDialog.open} onOpenChange={(open) => !open && setFeedSelectionDialog({ open: false, circuitId: null })}>
+        <DialogContent data-testid="dialog-feed-selection">
+          <DialogHeader>
+            <DialogTitle>Select Feed Cable</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="feed-cable">Feed Cable</Label>
+              <Select value={selectedFeedCableId} onValueChange={setSelectedFeedCableId}>
+                <SelectTrigger id="feed-cable" data-testid="select-feed-cable">
+                  <SelectValue placeholder="Select a Feed cable" />
+                </SelectTrigger>
+                <SelectContent>
+                  {feedCables.map((feedCable) => (
+                    <SelectItem key={feedCable.id} value={feedCable.id} data-testid={`option-feed-${feedCable.id}`}>
+                      {feedCable.name} ({feedCable.fiberCount} fibers)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setFeedSelectionDialog({ open: false, circuitId: null })}
+              data-testid="button-cancel-feed-selection"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmFeedSelection}
+              disabled={toggleSplicedMutation.isPending}
+              data-testid="button-confirm-feed-selection"
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

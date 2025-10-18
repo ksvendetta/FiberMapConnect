@@ -216,7 +216,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/circuits/:id/toggle-spliced", async (req, res) => {
     try {
-      const circuit = await storage.toggleCircuitSpliced(req.params.id);
+      const { feedCableId } = req.body;
+      const circuit = await storage.toggleCircuitSpliced(req.params.id, feedCableId);
       if (!circuit) {
         return res.status(404).json({ error: "Circuit not found" });
       }
