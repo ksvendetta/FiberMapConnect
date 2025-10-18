@@ -14,7 +14,7 @@ import { CableCard } from "@/components/CableCard";
 import { CableForm } from "@/components/CableForm";
 import { CableVisualization } from "@/components/CableVisualization";
 import { CircuitManagement } from "@/components/CircuitManagement";
-import { Plus, Cable as CableIcon, Network } from "lucide-react";
+import { Plus, Cable as CableIcon, Network, Workflow } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -126,7 +126,7 @@ export default function Home() {
               InputData
             </TabsTrigger>
             <TabsTrigger value="splice" data-testid="tab-splice">
-              <Network className="h-4 w-4 mr-2" />
+              <Workflow className="h-4 w-4 mr-2" />
               Splice
             </TabsTrigger>
           </TabsList>
@@ -201,7 +201,7 @@ export default function Home() {
                             <span className="ml-2 font-medium">{selectedCable.type}</span>
                           </div>
                           <div>
-                            <span className="text-muted-foreground">Fiber Count:</span>
+                            <span className="text-muted-foreground">Cable Size:</span>
                             <span className="ml-2 font-mono font-medium">{selectedCable.fiberCount}</span>
                           </div>
                         </div>

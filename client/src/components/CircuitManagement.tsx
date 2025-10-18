@@ -133,24 +133,52 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
 
   const handleCheckboxChange = (circuit: Circuit, checked: boolean) => {
     if (cable.type === "Distribution" && checked) {
-      // Extract prefix from Distribution circuit ID
-      const distributionPrefix = circuit.circuitId.split(',')[0]?.trim();
+      // Parse Distribution circuit ID to extract prefix and range
+      const distParts = circuit.circuitId.split(',');
+      if (distParts.length !== 2) {
+        toast({
+          title: "Invalid circuit ID format",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const distributionPrefix = distParts[0].trim();
+      const distRangeParts = distParts[1].trim().split('-');
+      if (distRangeParts.length !== 2) {
+        toast({
+          title: "Invalid circuit ID range format",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const distStart = parseInt(distRangeParts[0]);
+      const distEnd = parseInt(distRangeParts[1]);
       
       // Find matching circuit in Feed cables where the Distribution range is within the Feed range
       const matchingFeedCircuit = allCircuits.find(c => {
         const feedCable = allCables.find(cable => cable.id === c.cableId);
         if (feedCable?.type !== "Feed") return false;
         
-        // Extract prefix from Feed circuit ID
-        const feedPrefix = c.circuitId.split(',')[0]?.trim();
+        // Parse Feed circuit ID
+        const feedParts = c.circuitId.split(',');
+        if (feedParts.length !== 2) return false;
+        
+        const feedPrefix = feedParts[0].trim();
         
         // Check if prefixes match
         if (feedPrefix !== distributionPrefix) return false;
         
+        // Parse Feed range
+        const feedRangeParts = feedParts[1].trim().split('-');
+        if (feedRangeParts.length !== 2) return false;
+        
+        const feedStart = parseInt(feedRangeParts[0]);
+        const feedEnd = parseInt(feedRangeParts[1]);
+        
         // Check if Distribution range is within Feed range
-        const isWithinRange = 
-          circuit.fiberStart >= c.fiberStart && 
-          circuit.fiberEnd <= c.fiberEnd;
+        const isWithinRange = distStart >= feedStart && distEnd <= feedEnd;
         
         return isWithinRange;
       });
@@ -158,7 +186,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
       if (!matchingFeedCircuit) {
         toast({
           title: "No matching Feed circuit found",
-          description: `Could not find a Feed circuit with prefix "${distributionPrefix}" that contains the range ${circuit.fiberStart}-${circuit.fiberEnd}`,
+          description: `Could not find a Feed circuit with prefix "${distributionPrefix}" that contains the range ${distStart}-${distEnd}`,
           variant: "destructive",
         });
         return;
@@ -349,7 +377,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
             </Badge>
           )}
           <span className="text-sm text-muted-foreground" data-testid="text-cable-size">
-            Cable Size: {cable.fiberCount}
+            Fiber Count: {cable.fiberCount}
           </span>
         </div>
       </CardHeader>
