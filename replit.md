@@ -2,7 +2,7 @@
 
 ## Overview
 
-This application is a professional fiber optic cable splicing management tool designed for mapping and tracking fiber connections between multiple cables. It provides visual splice diagrams and workflow management for technical fiber optic infrastructure work. The system enables users to create cables with specific fiber counts and ribbon configurations, then define splice connections between fibers across different cables, with visual representations of the connections and their completion status.
+This application is a professional fiber optic cable splicing management tool designed for managing circuits within fiber cables. It provides a simple checkbox-based system for marking circuits as spliced. The system enables users to create cables with specific fiber counts, define circuit IDs with auto-calculated fiber positions, and track which circuits have been spliced using checkboxes.
 
 ## User Preferences
 
@@ -46,8 +46,8 @@ Preferred communication style: Simple, everyday language.
 **API Design**
 - RESTful endpoints under `/api` prefix
 - CRUD operations for cables: GET /api/cables, GET /api/cables/:id, POST /api/cables, PUT /api/cables/:id, DELETE /api/cables/:id
-- CRUD operations for circuits: GET /api/circuits, GET /api/circuits/cable/:cableId, POST /api/circuits, DELETE /api/circuits/:id
-- CRUD operations for splices: GET /api/splices, GET /api/splices/:id, POST /api/splices, PUT /api/splices/:id, DELETE /api/splices/:id
+- Circuit operations: GET /api/circuits, GET /api/circuits/cable/:cableId, POST /api/circuits/:id/toggle-spliced, DELETE /api/circuits/:id
+- Toggle splice status: POST /api/circuits/:id/toggle-spliced - Toggles the isSpliced boolean field for a circuit
 - Request validation using Zod schemas derived from Drizzle ORM schema definitions
 - JSON request/response format with appropriate HTTP status codes
 
@@ -65,16 +65,15 @@ Preferred communication style: Simple, everyday language.
 
 **Database Schema**
 - **Cables Table**: Stores cable definitions with id (UUID), name, fiberCount, ribbonSize (always 12, not exposed in UI), and type (restricted to "Feed" or "Distribution")
-- **Circuits Table**: Stores circuit ID assignments and fiber allocations within each cable (cableId, circuitId, position, fiberStart, fiberEnd - all auto-calculated)
-- **Splices Table**: Stores fiber connections between cables with source/destination cable references, ribbon numbers, fiber ranges (start/end), optional PON range, and completion status
+- **Circuits Table**: Stores circuit ID assignments and fiber allocations within each cable (cableId, circuitId, position, fiberStart, fiberEnd - all auto-calculated, isSpliced - integer 0/1)
 - UUID primary keys using PostgreSQL's gen_random_uuid()
-- Integer-based boolean for splice completion status (0/1) for database compatibility
+- Integer-based boolean for isSpliced field (0/1) for database compatibility
 
 **Storage Abstraction**
-- IStorage interface defining all data operations for cables, circuits, and splices
+- IStorage interface defining all data operations for cables and circuits
 - DatabaseStorage class implementing PostgreSQL-backed persistent storage via Drizzle ORM
-- Cascade deletion support (deleting a cable removes associated circuits and splices)
-- Splice conflict validation to prevent overlapping fiber assignments on the same cable
+- Cascade deletion support (deleting a cable removes associated circuits)
+- toggleCircuitSpliced method for updating isSpliced boolean field
 
 ### External Dependencies
 
@@ -108,27 +107,21 @@ Preferred communication style: Simple, everyday language.
 
 ### Database Persistence
 - Full PostgreSQL database integration via Neon serverless driver
-- All cables and splices persist across sessions
+- All cables and circuits persist across sessions
 - Automatic schema migrations with Drizzle Kit
 - UUID-based primary keys for all records
 
-### Splice Conflict Validation
-- Backend validation prevents overlapping fiber assignments
-- Checks both source and destination cables for conflicts
-- Returns clear error messages identifying conflicting fiber ranges
-- Prevents data integrity issues in splice planning
+### Checkbox-Based Splicing System
+- Simple checkbox interface to mark circuits as "spliced"
+- Each circuit in CircuitManagement component has a "Spliced" checkbox
+- Clicking checkbox toggles the isSpliced boolean field (0/1)
+- Splice tab displays all circuits where isSpliced === 1
+- Real-time updates when toggling splice status
 
-### Search and Filter
+### Cable Search
 - **Cable Search**: Real-time search by cable name or type
-- **Splice Filters**: Toggle between All, Completed, and Pending splices
 - Instant UI updates using React useMemo for performance
 - No-results states for better user experience
-
-### CSV Export
-- Export filtered splice data to CSV format
-- Includes all splice details: source/destination cables, fiber ranges, PON ranges, completion status
-- Automatic filename with current date
-- Respects current filter selection (exports only visible splices)
 
 ### Circuit ID Management (Auto-Calculated Fiber Positions)
 - **Simplified Input**: Circuit ID is the ONLY required input (e.g., "lg,33-36", "b,1-2")
@@ -142,34 +135,32 @@ Preferred communication style: Simple, everyday language.
 - **Visual Feedback**: Shows assigned/total fiber count (e.g., "24 / 24 fibers")
 - **Automatic Persistence**: All circuit data persists across sessions
 
-### Print-Optimized Layout
-- Professional print styles for field technician reference
-- A4 landscape page layout with optimized margins
-- Hides interactive elements (buttons, inputs) when printing
-- Forces light theme for better ink efficiency and clarity
-- Ensures fiber colors print correctly with exact color adjustment
-- SVG visualizations optimized for paper output
-- Table formatting with clear borders for readability
+### User Interface
+- Two main tabs: **InputData** (for managing cables and circuits) and **Splice** (for viewing spliced circuits)
+- InputData tab: Cable list with search, cable details, and circuit management
+- Splice tab: Table showing all circuits marked as spliced (cable name, circuit ID, fiber range)
+- Responsive design with professional technical interface
 
 ## Recent Changes (October 18, 2025)
-- Migrated from in-memory storage to PostgreSQL database
-- Added splice conflict validation at API level
-- Implemented search functionality for cables
-- Added filter controls for splice completion status
-- Created CSV export feature for splice documentation
-- Added print-friendly CSS with @media print rules
-- **Implemented auto-calculated circuit management system**:
+- **Major Simplification - Checkbox-Based Splicing**:
+  - Replaced complex splice entity system with simple checkbox-based approach
+  - Removed splice tables, forms, connections visualization, and related components
+  - Added isSpliced boolean field to circuits table
+  - Implemented POST /api/circuits/:id/toggle-spliced endpoint for toggling splice status
+  - Updated CircuitManagement component to show checkboxes for marking circuits as spliced
+  - Simplified Splice tab to display table of circuits where isSpliced === 1
+  - Removed ribbon size details from circuit display (now shows only fiber ranges)
+- **Auto-Calculated Circuit Management**:
   - Circuit ID as sole input (fiber positions calculated from order)
   - Automatic fiber range calculation based on circuit sequence
   - Smart recalculation when circuits are deleted
-  - Ribbon-aware position display (e.g., "R2: 9-12")
   - Pass/fail validation for complete fiber allocation
 - **Integrated Cable and Circuit Creation**:
-  - Circuits can now be entered during cable creation (multi-line textarea)
+  - Circuits entered during cable creation via multi-line textarea
   - Backend creates cable and associated circuits in one transaction
   - Auto-validates that circuits don't exceed cable fiber capacity
-  - Only available when creating new cables (not editing existing ones)
 - **Simplified Cable Configuration**:
-  - Ribbon size always defaults to 12 (removed from UI input)
+  - Ribbon size always defaults to 12 (not exposed in UI)
   - Cable type restricted to "Feed" and "Distribution" only
-  - Improved error messages showing specific validation errors from backend
+  - Database persistence with PostgreSQL
+  - Cable search functionality by name or type
