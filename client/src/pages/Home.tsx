@@ -561,25 +561,35 @@ export default function Home() {
                                   const feedStrand = getFiberPositionInRibbon(feedFiber);
                                   
                                   const circuitNumber = rangeStart + i;
-                                  const feedColor = getColorForStrand(feedStrand);
-                                  const distColor = getColorForStrand(distStrand);
+                                  const feedStrandColor = getColorForStrand(feedStrand);
+                                  const distStrandColor = getColorForStrand(distStrand);
+                                  const feedRibbonColor = getColorForRibbon(feedRibbon);
+                                  const distRibbonColor = getColorForRibbon(distRibbon);
                                   
                                   fiberRows.push(
                                     <TableRow key={`${circuit.id}-fiber-${i}`} className={rowBgColor} data-testid={`row-fiber-${circuit.id}-${i}`}>
                                       <TableCell className="text-center font-mono text-sm">{feedCable.name} - {feedCable.fiberCount}</TableCell>
-                                      <TableCell className="text-center font-mono font-semibold">R{feedRibbon}</TableCell>
                                       <TableCell className="text-center">
-                                        <div className={`inline-block px-3 py-1 rounded border-2 border-black ${feedColor.bg} ${feedColor.text} font-mono font-semibold`}>
+                                        <div className={`inline-block px-2 py-1 rounded border-2 border-black ${feedRibbonColor.bg} ${feedRibbonColor.text} font-mono font-semibold text-xs`}>
+                                          R{feedRibbon}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        <div className={`inline-block px-3 py-1 rounded border-2 border-black ${feedStrandColor.bg} ${feedStrandColor.text} font-mono font-semibold`}>
                                           {feedStrand}
                                         </div>
                                       </TableCell>
                                       <TableCell className="text-center font-mono font-semibold">{circuitPrefix},{circuitNumber}</TableCell>
                                       <TableCell className="text-center">
-                                        <div className={`inline-block px-3 py-1 rounded border-2 border-black ${distColor.bg} ${distColor.text} font-mono font-semibold`}>
+                                        <div className={`inline-block px-3 py-1 rounded border-2 border-black ${distStrandColor.bg} ${distStrandColor.text} font-mono font-semibold`}>
                                           {distStrand}
                                         </div>
                                       </TableCell>
-                                      <TableCell className="text-center font-mono font-semibold">R{distRibbon}</TableCell>
+                                      <TableCell className="text-center">
+                                        <div className={`inline-block px-2 py-1 rounded border-2 border-black ${distRibbonColor.bg} ${distRibbonColor.text} font-mono font-semibold text-xs`}>
+                                          R{distRibbon}
+                                        </div>
+                                      </TableCell>
                                       <TableCell className="text-center font-mono text-sm">{distributionCable?.name} - {distributionCable?.fiberCount}</TableCell>
                                     </TableRow>
                                   );
