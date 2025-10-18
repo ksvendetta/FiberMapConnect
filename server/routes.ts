@@ -568,17 +568,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const cables = await storage.getAllCables();
       const circuits = await storage.getAllCircuits();
       
-      // Create timestamp name
+      // Create timestamp name in format: MM/DD/YYYY HH:MM AM/PM
       const now = new Date();
-      const name = now.toLocaleString('en-US', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      }).replace(/,/g, '');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const year = now.getFullYear();
+      let hours = now.getHours();
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12; // 0 should be 12
+      const formattedHours = String(hours).padStart(2, '0');
+      const name = `${month}/${day}/${year} ${formattedHours}:${minutes} ${ampm}`;
       
       const saveData = {
         name,
