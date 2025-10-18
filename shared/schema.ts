@@ -61,6 +61,7 @@ export const splices = pgTable("splices", {
 export const insertCableSchema = createInsertSchema(cables).omit({ id: true });
 export const insertCircuitSchema = createInsertSchema(circuits).omit({ 
   id: true,
+  position: true, // Auto-calculated
   fiberStart: true, // Auto-calculated
   fiberEnd: true, // Auto-calculated
 });
