@@ -342,21 +342,51 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
     const startStrand = ((fiberStart - 1) % ribbonSize) + 1;
     const endStrand = ((fiberEnd - 1) % ribbonSize) + 1;
     
+    // Check if this is a complete ribbon usage (no splits)
+    const isStartRibbonFull = startStrand === 1;
+    const isEndRibbonFull = endStrand === ribbonSize;
+    const hasNoSplitRibbons = isStartRibbonFull && isEndRibbonFull;
+    
     if (startRibbon === endRibbon) {
-      return `R${startRibbon}: ${startStrand}-${endStrand}`;
+      // Single ribbon
+      if (startStrand === 1 && endStrand === ribbonSize) {
+        // Full ribbon, just show R1
+        return `R${startRibbon}`;
+      }
+      return `R${startRibbon}:${startStrand}-${endStrand}`;
     } else {
+      // Multiple ribbons
+      if (hasNoSplitRibbons) {
+        // All ribbons are complete, show Rx-Ry
+        return `R${startRibbon}-R${endRibbon}`;
+      }
+      
+      // Has split ribbons, show detailed breakdown
       const firstRibbonEnd = ribbonSize;
       const lastRibbonStart = 1;
       
-      let result = `R${startRibbon}: ${startStrand}-${firstRibbonEnd}`;
+      let parts = [];
       
-      for (let ribbon = startRibbon + 1; ribbon < endRibbon; ribbon++) {
-        result += ` / R${ribbon}: 1-${ribbonSize}`;
+      // First ribbon
+      if (startStrand === 1 && startRibbon < endRibbon) {
+        parts.push(`R${startRibbon}`);
+      } else {
+        parts.push(`R${startRibbon}:${startStrand}-${firstRibbonEnd}`);
       }
       
-      result += ` / R${endRibbon}: ${lastRibbonStart}-${endStrand}`;
+      // Middle ribbons (all complete)
+      for (let ribbon = startRibbon + 1; ribbon < endRibbon; ribbon++) {
+        parts.push(`R${ribbon}`);
+      }
       
-      return result;
+      // Last ribbon
+      if (endStrand === ribbonSize) {
+        parts.push(`R${endRibbon}`);
+      } else {
+        parts.push(`R${endRibbon}:${lastRibbonStart}-${endStrand}`);
+      }
+      
+      return parts.join(' / ');
     }
   };
 
