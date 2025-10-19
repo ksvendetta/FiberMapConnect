@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Cable, Circuit, InsertCable } from "@shared/schema";
+import { Cable, Circuit, InsertCable, Settings, SpliceMode } from "@shared/schema";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,6 +54,23 @@ export default function Home() {
 
   const { data: allCircuits = [], isLoading: circuitsLoading } = useQuery<Circuit[]>({
     queryKey: ["/api/circuits"],
+  });
+
+  const { data: settings } = useQuery<Settings>({
+    queryKey: ["/api/settings"],
+  });
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (spliceMode: SpliceMode) => {
+      return await apiRequest("PATCH", "/api/settings", { spliceMode });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      toast({ title: `Switched to ${settings?.spliceMode === "fiber" ? "copper" : "fiber"} mode` });
+    },
+    onError: () => {
+      toast({ title: "Failed to switch mode", variant: "destructive" });
+    },
   });
 
   // Sort cables: Feed first, then Distribution (maintaining insertion order within each type)
@@ -194,7 +211,20 @@ export default function Home() {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-xl font-semibold">Fiber Splice Manager</h1>
+              <h1 className="text-xl font-semibold">
+                {settings?.spliceMode === "fiber" ? "Fiber" : "Copper"} Splice Manager
+              </h1>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const newMode = settings?.spliceMode === "fiber" ? "copper" : "fiber";
+                  updateSettingsMutation.mutate(newMode);
+                }}
+                data-testid="button-toggle-mode"
+              >
+                Switch to {settings?.spliceMode === "fiber" ? "Copper" : "Fiber"}
+              </Button>
             </div>
             <div className="flex items-center gap-2">
               <Button
