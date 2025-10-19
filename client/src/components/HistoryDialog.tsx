@@ -39,13 +39,8 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
       return await apiRequest("POST", `/api/saves/${saveId}/load`, undefined);
     },
     onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Project loaded successfully",
-      });
-      
       // Reload the page to show loaded data
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: () => {
       toast({

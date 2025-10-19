@@ -51,8 +51,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
       return await apiRequest("POST", "/api/circuits", data);
     },
     onSuccess: () => {
-      toast({ title: "Circuit added successfully" });
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: (error: any) => {
       toast({ 
@@ -68,8 +67,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
       return await apiRequest("DELETE", `/api/circuits/${id}`, undefined);
     },
     onSuccess: () => {
-      toast({ title: "Circuit deleted successfully" });
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: () => {
       toast({ title: "Failed to delete circuit", variant: "destructive" });
@@ -102,8 +100,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
       return await apiRequest("PATCH", `/api/circuits/${id}/update-circuit-id`, { circuitId });
     },
     onSuccess: () => {
-      toast({ title: "Circuit ID updated successfully" });
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: (error: any) => {
       toast({ 
@@ -119,8 +116,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
       return await apiRequest("PATCH", `/api/circuits/${id}/move`, { direction });
     },
     onSuccess: () => {
-      toast({ title: "Circuit moved successfully" });
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: () => {
       toast({ title: "Failed to move circuit", variant: "destructive" });

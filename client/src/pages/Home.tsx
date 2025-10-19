@@ -69,8 +69,7 @@ export default function Home() {
       return await apiRequest("POST", "/api/cables", data);
     },
     onSuccess: () => {
-      toast({ title: "Cable created successfully" });
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: (error: any) => {
       const errorMessage = error?.message || "Failed to create cable";
@@ -83,8 +82,7 @@ export default function Home() {
       return await apiRequest("PUT", `/api/cables/${id}`, data);
     },
     onSuccess: () => {
-      toast({ title: "Cable updated successfully" });
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: (error: any) => {
       const errorMessage = error?.message || "Failed to update cable";
@@ -97,8 +95,7 @@ export default function Home() {
       return await apiRequest("DELETE", `/api/cables/${id}`, undefined);
     },
     onSuccess: () => {
-      toast({ title: "Cable deleted successfully" });
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: () => {
       toast({ title: "Failed to delete cable", variant: "destructive" });
@@ -125,8 +122,7 @@ export default function Home() {
       return await apiRequest("DELETE", "/api/reset", undefined);
     },
     onSuccess: () => {
-      toast({ title: "Current project saved. Starting new project." });
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: () => {
       toast({ title: "Failed to start new project", variant: "destructive" });
@@ -138,8 +134,7 @@ export default function Home() {
       return await apiRequest("DELETE", "/api/reset", undefined);
     },
     onSuccess: () => {
-      toast({ title: "All data has been reset" });
-      window.location.reload();
+      window.location.href = window.location.href;
     },
     onError: () => {
       toast({ title: "Failed to reset data", variant: "destructive" });
