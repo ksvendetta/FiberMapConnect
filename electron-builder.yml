@@ -1,0 +1,27 @@
+appId: com.fibersplice.manager
+productName: Fiber Splice Manager
+
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+  category: Utility
+
+files:
+  - dist/**/*
+  - electron-main.cjs
+  - attached_assets/**/*
+  - node_modules/**/*
+  - package.json
+
+directories:
+  output: release
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  installerIcon: attached_assets/image_1760814059676.png
+  uninstallerIcon: attached_assets/image_1760814059676.png
