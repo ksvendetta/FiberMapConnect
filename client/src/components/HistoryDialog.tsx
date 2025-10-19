@@ -39,9 +39,9 @@ export function HistoryDialog({ open, onOpenChange }: HistoryDialogProps) {
       return await apiRequest("POST", `/api/saves/${saveId}/load`, undefined);
     },
     onSuccess: async () => {
-      // Invalidate and refetch all cables and circuits queries
-      await queryClient.invalidateQueries({ queryKey: ["/api/cables"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/circuits"] });
+      // Force refetch of all cables and circuits queries
+      await queryClient.refetchQueries({ queryKey: ["/api/cables"] });
+      await queryClient.refetchQueries({ queryKey: ["/api/circuits"] });
       
       toast({
         title: "Success",
