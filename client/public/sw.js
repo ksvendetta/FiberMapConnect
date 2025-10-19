@@ -1,9 +1,7 @@
-const CACHE_NAME = 'fiber-splice-v1';
+const CACHE_NAME = 'fiber-splice-v2';
 const urlsToCache = [
   '/',
-  '/index.html',
-  '/src/main.tsx',
-  '/src/index.css'
+  '/index.html'
 ];
 
 // Install service worker and cache assets
