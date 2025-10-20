@@ -509,11 +509,11 @@ export default function Home() {
                                     <TableRow key={`${circuit.id}-segment-${currentDistFiber}`} className={rowBgColor} data-testid={`row-ribbon-${circuit.id}-${currentDistFiber}`}>
                                       <TableCell className="text-center font-mono text-sm">{feedCable.name} - {feedCable.fiberCount}</TableCell>
                                       <TableCell className={`text-center font-mono font-semibold ${feedRibbonColor.colorClass}`}>
-                                        R{currentFeedRibbon}:{feedStrandStart}-{feedStrandEnd}
+                                        R{currentFeedRibbon}:{feedStrandStart}{feedStrandStart !== feedStrandEnd ? `-${feedStrandEnd}` : ''}
                                       </TableCell>
                                       <TableCell className="text-center font-mono font-semibold">{circuitPrefix},{circuitStart}-{circuitEnd}</TableCell>
                                       <TableCell className={`text-center font-mono font-semibold ${distRibbonColor.colorClass}`}>
-                                        R{currentDistRibbon}:{distStrandStart}-{distStrandEnd}
+                                        R{currentDistRibbon}:{distStrandStart}{distStrandStart !== distStrandEnd ? `-${distStrandEnd}` : ''}
                                       </TableCell>
                                       <TableCell className="text-center font-mono text-sm">{distributionCable?.name} - {distributionCable?.fiberCount}</TableCell>
                                     </TableRow>

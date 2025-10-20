@@ -417,11 +417,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
     };
     
     if (startRibbon === endRibbon) {
-      // Single ribbon
-      if (startStrand === 1 && endStrand === ribbonSize) {
-        // Full ribbon, just show R1
-        return <ColoredRibbon num={startRibbon} />;
-      }
+      // Single ribbon - always show strand range
       return (
         <span className="flex items-center gap-1">
           <ColoredRibbon num={startRibbon} />
@@ -457,16 +453,16 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
       const firstFullRibbon = startsWithPartialRibbon ? startRibbon + 1 : startRibbon;
       const lastFullRibbon = endsWithPartialRibbon ? endRibbon - 1 : endRibbon;
       
-      // Add full ribbons as a range
+      // Add full ribbons with explicit strand ranges
       if (firstFullRibbon <= lastFullRibbon) {
-        if (firstFullRibbon === lastFullRibbon) {
-          parts.push(<ColoredRibbon key={`full-${firstFullRibbon}`} num={firstFullRibbon} />);
-        } else {
+        for (let r = firstFullRibbon; r <= lastFullRibbon; r++) {
           parts.push(
-            <span key={`range-${firstFullRibbon}-${lastFullRibbon}`} className="flex items-center gap-1">
-              <ColoredRibbon num={firstFullRibbon} />
+            <span key={`full-${r}`} className="flex items-center gap-1">
+              <ColoredRibbon num={r} />
+              <span>:</span>
+              <ColoredStrand num={1} />
               <span>-</span>
-              <ColoredRibbon num={lastFullRibbon} />
+              <ColoredStrand num={ribbonSize} />
             </span>
           );
         }
