@@ -54,7 +54,46 @@ export async function apiRequest(
     
     if (method === 'POST') {
       if (resource === 'cables') {
-        result = await storage.createCable(data as any);
+        const cableData = data as any;
+        result = await storage.createCable(cableData);
+        
+        // If circuitIds are provided, create the circuits
+        if (cableData.circuitIds && Array.isArray(cableData.circuitIds) && cableData.circuitIds.length > 0) {
+          let currentFiberStart = 1;
+          
+          for (const circuitId of cableData.circuitIds) {
+            // Skip empty lines
+            const trimmedCircuitId = circuitId.trim();
+            if (!trimmedCircuitId) continue;
+            
+            // Parse circuit ID to get fiber count (format: "prefix,start-end")
+            const parts = trimmedCircuitId.split(',');
+            if (parts.length !== 2) continue; // Skip invalid format
+            const rangeParts = parts[1].split('-');
+            if (rangeParts.length !== 2) continue; // Skip invalid format
+            const rangeStart = parseInt(rangeParts[0]);
+            const rangeEnd = parseInt(rangeParts[1]);
+            if (isNaN(rangeStart) || isNaN(rangeEnd)) continue; // Skip invalid numbers
+            const fiberCount = rangeEnd - rangeStart + 1;
+            
+            const fiberEnd = currentFiberStart + fiberCount - 1;
+            
+            // Get current circuit count for position
+            const existingCircuits = await storage.getCircuitsByCableId(result.id);
+            const position = existingCircuits.length;
+            
+            // Create the circuit
+            await storage.createCircuit({
+              cableId: result.id,
+              circuitId: trimmedCircuitId,
+              position,
+              fiberStart: currentFiberStart,
+              fiberEnd
+            });
+            
+            currentFiberStart = fiberEnd + 1;
+          }
+        }
       } else if (resource === 'circuits') {
         // Calculate circuit fiber positions before creating
         const circuitData = data as any;
