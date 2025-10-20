@@ -505,52 +505,15 @@ export default function Home() {
                                   const feedRibbonColor = getColorForRibbon(currentFeedRibbon);
                                   const distRibbonColor = getColorForRibbon(currentDistRibbon);
                                   
-                                  const feedStrandStartColor = getColorForStrand(feedStrandStart);
-                                  const feedStrandEndColor = getColorForStrand(feedStrandEnd);
-                                  const distStrandStartColor = getColorForStrand(distStrandStart);
-                                  const distStrandEndColor = getColorForStrand(distStrandEnd);
-                                  
                                   ribbonRows.push(
                                     <TableRow key={`${circuit.id}-segment-${currentDistFiber}`} className={rowBgColor} data-testid={`row-ribbon-${circuit.id}-${currentDistFiber}`}>
                                       <TableCell className="text-center font-mono text-sm">{feedCable.name} - {feedCable.fiberCount}</TableCell>
-                                      <TableCell className="text-center">
-                                        <div className="inline-flex gap-0 items-center justify-center">
-                                          <span className={`inline-block px-2 py-1 rounded border-2 ${feedRibbonColor.colorClass} font-mono font-semibold text-xs`} style={{ borderColor: 'currentColor' }}>
-                                            R{currentFeedRibbon}
-                                          </span>
-                                          <span className="font-mono font-semibold text-xs px-0.5">:</span>
-                                          <span className={`inline-block px-2 py-1 rounded border-2 border-black ${feedStrandStartColor.bg} ${feedStrandStartColor.text} font-mono font-semibold text-xs`}>
-                                            {feedStrandStart}
-                                          </span>
-                                          {feedStrandStart !== feedStrandEnd && (
-                                            <>
-                                              <span className="font-mono font-semibold text-xs px-0.5">-</span>
-                                              <span className={`inline-block px-2 py-1 rounded border-2 border-black ${feedStrandEndColor.bg} ${feedStrandEndColor.text} font-mono font-semibold text-xs`}>
-                                                {feedStrandEnd}
-                                              </span>
-                                            </>
-                                          )}
-                                        </div>
+                                      <TableCell className={`text-center font-mono font-semibold ${feedRibbonColor.colorClass}`}>
+                                        R{currentFeedRibbon}:{feedStrandStart}{feedStrandStart !== feedStrandEnd ? `-${feedStrandEnd}` : ''}
                                       </TableCell>
                                       <TableCell className="text-center font-mono font-semibold">{circuitPrefix},{circuitStart}-{circuitEnd}</TableCell>
-                                      <TableCell className="text-center">
-                                        <div className="inline-flex gap-0 items-center justify-center">
-                                          <span className={`inline-block px-2 py-1 rounded border-2 ${distRibbonColor.colorClass} font-mono font-semibold text-xs`} style={{ borderColor: 'currentColor' }}>
-                                            R{currentDistRibbon}
-                                          </span>
-                                          <span className="font-mono font-semibold text-xs px-0.5">:</span>
-                                          <span className={`inline-block px-2 py-1 rounded border-2 border-black ${distStrandStartColor.bg} ${distStrandStartColor.text} font-mono font-semibold text-xs`}>
-                                            {distStrandStart}
-                                          </span>
-                                          {distStrandStart !== distStrandEnd && (
-                                            <>
-                                              <span className="font-mono font-semibold text-xs px-0.5">-</span>
-                                              <span className={`inline-block px-2 py-1 rounded border-2 border-black ${distStrandEndColor.bg} ${distStrandEndColor.text} font-mono font-semibold text-xs`}>
-                                                {distStrandEnd}
-                                              </span>
-                                            </>
-                                          )}
-                                        </div>
+                                      <TableCell className={`text-center font-mono font-semibold ${distRibbonColor.colorClass}`}>
+                                        R{currentDistRibbon}:{distStrandStart}{distStrandStart !== distStrandEnd ? `-${distStrandEnd}` : ''}
                                       </TableCell>
                                       <TableCell className="text-center font-mono text-sm">{distributionCable?.name} - {distributionCable?.fiberCount}</TableCell>
                                     </TableRow>
