@@ -436,6 +436,30 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
       // Check if we end with a partial ribbon
       const endsWithPartialRibbon = endStrand !== ribbonSize;
       
+      // If no partial ribbons, use compact ribbon range format
+      if (!startsWithPartialRibbon && !endsWithPartialRibbon) {
+        if (startRibbon === endRibbon - 1) {
+          // Two consecutive ribbons
+          return (
+            <span className="flex items-center gap-1">
+              <ColoredRibbon num={startRibbon} />
+              <span>-</span>
+              <ColoredRibbon num={endRibbon} />
+            </span>
+          );
+        } else {
+          // More than two ribbons
+          return (
+            <span className="flex items-center gap-1">
+              <ColoredRibbon num={startRibbon} />
+              <span>-</span>
+              <ColoredRibbon num={endRibbon} />
+            </span>
+          );
+        }
+      }
+      
+      // Has partial ribbons, show each ribbon with strand ranges
       if (startsWithPartialRibbon) {
         // First ribbon is partial
         parts.push(
