@@ -2,7 +2,7 @@
 
 ## Overview
 
-This application is a professional fiber optic cable splicing management tool for tracking circuits within fiber cables. It features a checkbox-based system for marking circuits as spliced, allowing users to create cables with specific fiber counts, define circuit IDs with auto-calculated fiber positions, and manage splice connections. The system aims to simplify the process of fiber optic cable management with a focus on automatic matching and industry-standard visualizations.
+This application is a **Progressive Web App (PWA)** for professional fiber optic cable splicing management. It runs completely offline with all data stored locally in the browser using IndexedDB, allowing users to install the app from their browser and use it without any internet connection. The app features a checkbox-based system for marking circuits as spliced, automatic fiber position calculation, splice connection management, and complete data persistence across sessions.
 
 ## User Preferences
 
@@ -17,30 +17,33 @@ Preferred communication style: Simple, everyday language.
 **UI Component System:** Shadcn UI (New York style) based on Radix UI, Tailwind CSS with a custom HSL-based color system, Material Design principles adapted for industrial use.
 **Design System Highlights:** Dark mode primary interface (deep navy-charcoal), professional blue primary color, exact HSL color specifications for fiber optic standard colors (12 colors: blue, orange, green, brown, slate, white, red, black, yellow, violet, pink, aqua), Inter and JetBrains Mono typography, responsive spacing.
 
-### Backend Architecture
+### Application Architecture
 
-**Server Framework:** Express.js with TypeScript for RESTful API endpoints.
-**API Design:** RESTful endpoints for CRUD operations on cables and circuits (`/api/cables`, `/api/circuits`).
-**Circuit Operations:** Includes `PATCH /api/circuits/:id/toggle-spliced` to update splice status and map feed cable information.
-**Validation:** Zod schemas derived from Drizzle ORM.
-**Development & Production Modes:** Vite middleware for development, static file serving for production.
+**Frontend-Only PWA:** No backend server required - all logic runs in the browser.
+**Query Client:** Custom IndexedDB-based query client intercepts all "API" calls and routes them to local storage operations.
+**Circuit Auto-Calculation:** Position, fiberStart, and fiberEnd calculated automatically in the query client during circuit creation.
+**Data Flow:** All CRUD operations go through storage layer abstraction, making the app completely offline-capable.
+**Development Server:** Minimal Vite dev server only serves static files, no backend logic.
 
 ### Data Storage Solutions
 
-**Storage Implementation:** SQLite persistent local database using better-sqlite3 for offline-capable desktop application.
-**Database File:** `fiber-splice.db` stored locally, persists data across app restarts.
-**Database Schema:**
-- **Cables Table:** `id` (UUID), `name`, `fiberCount`, `ribbonSize` (12), `type` ("Feed" or "Distribution").
-- **Circuits Table:** `cableId`, `circuitId`, `position`, `fiberStart`, `fiberEnd`, `isSpliced` (0/1), `feedCableId` (UUID, nullable), `feedFiberStart` (nullable), `feedFiberEnd` (nullable).
-- **Saves Table:** `id` (UUID), `name` (date/time stamp), `createdAt` (timestamp), `data` (JSON string containing cables and circuits).
-- **Splices Table:** Source/destination cable mappings with ribbon and fiber positions.
-- UUID primary keys, CASCADE foreign keys for automatic cleanup on cable deletion.
-**Storage Abstraction:** `IStorage` interface with `SQLiteStorage` implementation for persistent local storage.
+**Storage Implementation:** IndexedDB (browser database) using Dexie library for offline-first PWA architecture.
+**Database:** `FiberSpliceDB` version 2, stored in browser's IndexedDB, persists indefinitely.
+**IndexedDB Schema:**
+- **Cables Store:** `id` (primary key), `name`, `fiberCount`, `ribbonSize` (12), `type` ("Feed" or "Distribution"). Indexed: id, name, type.
+- **Circuits Store:** `id`, `cableId`, `circuitId`, `position`, `fiberStart`, `fiberEnd`, `isSpliced` (0/1), `feedCableId`, `feedFiberStart`, `feedFiberEnd`. Indexed: id, cableId, position, isSpliced.
+- **Saves Store:** `id`, `name` (date/time stamp), `createdAt` (timestamp), `data` (JSON string containing cables and circuits). Indexed: id, createdAt.
+- All data persists across browser sessions and page reloads.
+**Storage Abstraction:** Storage layer provides clean API for CRUD operations, called directly by query client (no HTTP involved).
 
 ### System Design Choices & Features
 
-**Database Persistence:** SQLite local database file, all data persists between app launches, automatic schema initialization on first run.
-**Desktop Application Packaging:** Electron wrapper for Windows .exe distribution, includes embedded Node.js runtime and all dependencies.
+**PWA Capabilities:** 
+- Installable from browser via manifest.json
+- Service worker with offline caching for complete offline functionality
+- All app assets cached for instant offline loading
+- No server required after initial load
+**Browser-Based Persistence:** IndexedDB stores all data locally, persists indefinitely unless user clears browser data.
 **Error Handling & Recovery:** Graceful 404 error handling for stale data, automatic cache invalidation, Refresh button for manual data sync.
 **Checkbox-Based Splicing with Automatic Range-Based Circuit Matching:**
 - Simple checkbox to mark Distribution circuits as spliced, automatically searching all Feed cables for a matching circuit using range-based matching.
@@ -84,7 +87,8 @@ Preferred communication style: Simple, everyday language.
 
 ## External Dependencies
 
-**Database:** PostgreSQL (via Neon serverless driver @neondatabase/serverless).
+**IndexedDB Library:** Dexie (wrapper for browser IndexedDB API).
+**PWA:** Service worker for offline caching, manifest.json for installation.
 **Core Libraries:**
 - React ecosystem: `react`, `react-dom`, `wouter`.
 - State management: `@tanstack/react-query`, `react-hook-form`.

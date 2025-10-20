@@ -95,8 +95,15 @@ export async function apiRequest(
           fiberEnd
         });
       } else if (resource === 'saves') {
-        const { name } = data as any;
-        result = await storage.createSave(name);
+        if (rest.includes('load')) {
+          // Load save
+          await storage.loadSave(id);
+          result = { success: true };
+        } else {
+          // Create new save
+          const { name } = data as any;
+          result = await storage.createSave(name);
+        }
       }
     } else if (method === 'PATCH' || method === 'PUT') {
       if (resource === 'cables') {
