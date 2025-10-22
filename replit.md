@@ -39,9 +39,14 @@ Preferred communication style: Simple, everyday language.
 
 **PWA Capabilities:** 
 - Installable from browser via manifest.json
-- Service worker with offline caching for complete offline functionality
+- Service worker v3 with comprehensive offline caching strategy:
+  - Caches Tesseract.js language files from CDN (unpkg.com/jsdelivr.net) for offline OCR
+  - Allows blob: and data: URLs to pass through for file downloads
+  - Cache-first strategy for app assets (JS/CSS/fonts/images)
+  - Network-first strategy for API calls (with cache fallback)
 - All app assets cached for instant offline loading
 - No server required after initial load
+- OCR and file save/load operations work completely offline
 **Browser-Based Persistence:** IndexedDB stores all data locally, persists indefinitely unless user clears browser data.
 **Error Handling & Recovery:** Graceful 404 error handling for stale data, automatic cache invalidation.
 **Checkbox-Based Splicing with Automatic Range-Based Circuit Matching:**
