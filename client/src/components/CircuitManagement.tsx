@@ -409,6 +409,17 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
     
     const ColoredRibbon = ({ num }: { num: number }) => {
       const color = getColorForNumber(num);
+      // R6 is white - use inverted styling for better visibility
+      const isR6 = (num - 1) % 12 === 5; // Index 5 = white
+      
+      if (isR6) {
+        return (
+          <span className="inline-block px-2 py-0.5 rounded border-2 border-black bg-slate-300 text-white font-mono font-semibold text-xs">
+            R{num}
+          </span>
+        );
+      }
+      
       return (
         <span className={`inline-block px-2 py-0.5 rounded border-2 ${color.colorClass} font-mono font-semibold text-xs`} style={{ borderColor: 'currentColor' }}>
           R{num}
