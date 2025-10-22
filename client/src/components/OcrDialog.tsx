@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { Camera, Upload, Copy, CheckCircle2 } from "lucide-react";
+import { Camera, Upload, Copy, CheckCircle2, Monitor } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface OcrDialogProps {
@@ -69,6 +69,60 @@ export function OcrDialog({ open, onOpenChange, onTextExtracted }: OcrDialogProp
         description: "Please upload an image file instead",
         variant: "destructive" 
       });
+    }
+  };
+
+  const handleScreenCapture = async () => {
+    try {
+      // Request screen capture permission
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { 
+          mediaSource: 'screen',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        } as any
+      });
+
+      // Create video element to capture frame
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      video.play();
+
+      // Wait for video to be ready
+      await new Promise((resolve) => {
+        video.onloadedmetadata = resolve;
+      });
+
+      // Create canvas and capture current frame
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0);
+
+      // Stop the stream
+      stream.getTracks().forEach(track => track.stop());
+
+      // Convert to base64
+      const imageDataUrl = canvas.toDataURL('image/png');
+      setSelectedImage(imageDataUrl);
+      setExtractedText("");
+      
+      toast({ title: "Screen captured successfully" });
+    } catch (error: any) {
+      if (error.name === 'NotAllowedError') {
+        toast({ 
+          title: "Permission denied", 
+          description: "Screen capture permission was denied",
+          variant: "destructive" 
+        });
+      } else {
+        toast({ 
+          title: "Screen capture failed", 
+          description: "Please try the Upload or Paste option instead",
+          variant: "destructive" 
+        });
+      }
     }
   };
 
@@ -144,8 +198,8 @@ export function OcrDialog({ open, onOpenChange, onTextExtracted }: OcrDialogProp
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Upload/Paste Buttons */}
-          <div className="flex gap-2">
+          {/* Upload/Paste/Capture Buttons */}
+          <div className="grid grid-cols-3 gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -157,20 +211,26 @@ export function OcrDialog({ open, onOpenChange, onTextExtracted }: OcrDialogProp
             <Button
               variant="outline"
               onClick={() => fileInputRef.current?.click()}
-              className="flex-1"
               data-testid="button-upload-image"
             >
               <Upload className="h-4 w-4 mr-2" />
-              Upload Image
+              Upload
             </Button>
             <Button
               variant="outline"
               onClick={handlePaste}
-              className="flex-1"
               data-testid="button-paste-image"
             >
               <Camera className="h-4 w-4 mr-2" />
-              Paste Screenshot
+              Paste
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleScreenCapture}
+              data-testid="button-capture-screen"
+            >
+              <Monitor className="h-4 w-4 mr-2" />
+              Capture
             </Button>
           </div>
 
@@ -266,7 +326,13 @@ export function OcrDialog({ open, onOpenChange, onTextExtracted }: OcrDialogProp
           {/* Help Text */}
           {!selectedImage && (
             <div className="text-sm text-muted-foreground space-y-2 border rounded-md p-4 bg-muted/50">
-              <p className="font-medium">Tips for best results:</p>
+              <p className="font-medium">Three ways to add an image:</p>
+              <ul className="list-disc list-inside space-y-1 ml-2">
+                <li><strong>Upload:</strong> Choose an image file from your computer</li>
+                <li><strong>Paste:</strong> Copy screenshot to clipboard (Win+Shift+S / Cmd+Shift+4), then click Paste</li>
+                <li><strong>Capture:</strong> Select a window or screen to capture in real-time</li>
+              </ul>
+              <p className="font-medium mt-3">Tips for best OCR results:</p>
               <ul className="list-disc list-inside space-y-1 ml-2">
                 <li>Use clear, high-contrast images</li>
                 <li>Ensure text is horizontal and legible</li>

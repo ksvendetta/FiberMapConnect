@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertCableSchema, type InsertCable, type Cable, cableTypes } from "@shared/schema";
@@ -20,6 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Scan } from "lucide-react";
+import { OcrDialog } from "./OcrDialog";
 
 interface CableFormProps {
   cable?: Cable;
@@ -29,6 +32,8 @@ interface CableFormProps {
 }
 
 export function CableForm({ cable, onSubmit, onCancel, isLoading }: CableFormProps) {
+  const [ocrDialogOpen, setOcrDialogOpen] = useState(false);
+  
   const form = useForm<InsertCable>({
     resolver: zodResolver(insertCableSchema),
     defaultValues: cable ? {
@@ -115,7 +120,20 @@ export function CableForm({ cable, onSubmit, onCancel, isLoading }: CableFormPro
             name="circuitIds"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Circuit IDs (Optional)</FormLabel>
+                <div className="flex items-center justify-between">
+                  <FormLabel>Circuit IDs (Optional)</FormLabel>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setOcrDialogOpen(true)}
+                    title="Extract text from image (OCR)"
+                    data-testid="button-open-cable-ocr"
+                  >
+                    <Scan className="h-4 w-4 mr-2" />
+                    Scan Image
+                  </Button>
+                </div>
                 <FormControl>
                   <Textarea
                     placeholder="Enter circuit IDs, one per line&#10;e.g.,&#10;b,1-2&#10;n,15-16&#10;lg,33-36"
@@ -153,6 +171,23 @@ export function CableForm({ cable, onSubmit, onCancel, isLoading }: CableFormPro
           </Button>
         </div>
       </form>
+
+      <OcrDialog
+        open={ocrDialogOpen}
+        onOpenChange={setOcrDialogOpen}
+        onTextExtracted={(text) => {
+          // Get current circuit IDs
+          const currentValue = form.getValues('circuitIds') || [];
+          const currentText = currentValue.join('\n');
+          
+          // Append extracted text
+          const newText = currentText ? `${currentText}\n${text}` : text;
+          const newLines = newText.split('\n').filter(line => line.trim());
+          
+          // Update form
+          form.setValue('circuitIds', newLines);
+        }}
+      />
     </Form>
   );
 }
