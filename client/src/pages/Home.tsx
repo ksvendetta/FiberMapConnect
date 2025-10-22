@@ -24,7 +24,7 @@ import { CableCard } from "@/components/CableCard";
 import { CableForm } from "@/components/CableForm";
 import { CableVisualization } from "@/components/CableVisualization";
 import { CircuitManagement } from "@/components/CircuitManagement";
-import { Plus, Cable as CableIcon, Workflow, Save, Upload, RotateCcw } from "lucide-react";
+import { Plus, Cable as CableIcon, Workflow, Save, Upload, RotateCcw, Edit2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -378,13 +378,37 @@ export default function Home() {
                     {selectedCable ? (
                       <div className="space-y-6">
                         <div className="grid grid-cols-2 gap-4 text-sm">
-                          <div>
+                          <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">Type:</span>
                             <span className="ml-2 font-medium">{selectedCable.type}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                setEditingCable(selectedCable);
+                                setCableDialogOpen(true);
+                              }}
+                              data-testid="button-edit-type"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
                           </div>
-                          <div>
+                          <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">Cable Size:</span>
                             <span className="ml-2 font-mono font-medium">{selectedCable.fiberCount}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => {
+                                setEditingCable(selectedCable);
+                                setCableDialogOpen(true);
+                              }}
+                              data-testid="button-edit-size"
+                            >
+                              <Edit2 className="h-3 w-3" />
+                            </Button>
                           </div>
                         </div>
 
