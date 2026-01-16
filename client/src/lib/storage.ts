@@ -67,12 +67,8 @@ export const storage = {
   },
 
   async bulkUpdateCircuits(updates: Array<{ id: string; changes: Partial<Circuit> }>): Promise<void> {
-    // Use transaction for better performance
-    await db.transaction('rw', db.circuits, async () => {
-      for (const { id, changes } of updates) {
-        await db.circuits.update(id, changes);
-      }
-    });
+    // Use Promise.all for parallel updates instead of sequential
+    await Promise.all(updates.map(({ id, changes }) => db.circuits.update(id, changes)));
   },
 
   async deleteCircuit(id: string): Promise<void> {

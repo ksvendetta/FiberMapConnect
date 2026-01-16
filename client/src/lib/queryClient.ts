@@ -202,11 +202,22 @@ export async function apiRequest(
         for (const c of allCircuits) {
           const updatedCircuit = c.id === id ? { ...c, circuitId: newCircuitId } : c;
           
+          // Skip circuits with empty or invalid circuit IDs
+          if (!updatedCircuit.circuitId || !updatedCircuit.circuitId.includes(',')) {
+            continue;
+          }
+          
           // Calculate fiber count from circuit ID
           const cParts = updatedCircuit.circuitId.split(',');
+          if (!cParts[1]) continue;
+          
           const cRangeParts = cParts[1].split('-');
+          if (cRangeParts.length !== 2) continue;
+          
           const cStart = parseInt(cRangeParts[0]);
           const cEnd = parseInt(cRangeParts[1]);
+          if (isNaN(cStart) || isNaN(cEnd)) continue;
+          
           const cFiberCount = cEnd - cStart + 1;
           
           const fiberStart = currentFiberStart;
@@ -309,11 +320,22 @@ export async function apiRequest(
         for (let i = 0; i < allCircuits.length; i++) {
           const c = allCircuits[i];
           
+          // Skip circuits with empty or invalid circuit IDs
+          if (!c.circuitId || !c.circuitId.includes(',')) {
+            continue;
+          }
+          
           // Calculate fiber count from circuit ID
           const parts = c.circuitId.split(',');
+          if (!parts[1]) continue;
+          
           const rangeParts = parts[1].split('-');
+          if (rangeParts.length !== 2) continue;
+          
           const rangeStart = parseInt(rangeParts[0]);
           const rangeEnd = parseInt(rangeParts[1]);
+          if (isNaN(rangeStart) || isNaN(rangeEnd)) continue;
+          
           const fiberCount = rangeEnd - rangeStart + 1;
           
           const fiberStart = currentFiberStart;
