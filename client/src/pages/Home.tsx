@@ -344,13 +344,17 @@ export default function Home() {
                     }, 0);
                     const isValid = totalAssignedFibers === cable.fiberCount;
                     
+                    const typeColorClass = cable.type === "Feed" 
+                      ? "bg-green-100 dark:bg-green-950/50 hover:bg-green-200 dark:hover:bg-green-900/50" 
+                      : "bg-blue-100 dark:bg-blue-950/50 hover:bg-blue-200 dark:hover:bg-blue-900/50";
+                    
                     return (
                       <Button
                         key={cable.id}
                         variant={selectedCableId === cable.id ? "default" : "outline"}
                         size="sm"
                         onClick={() => setSelectedCableId(cable.id)}
-                        className="flex items-center gap-2"
+                        className={`flex items-center gap-2 ${selectedCableId !== cable.id ? typeColorClass : ''}`}
                         data-testid={`button-cable-${cable.id}`}
                       >
                         <CableIcon className="h-4 w-4" />
