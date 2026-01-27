@@ -657,6 +657,7 @@ export default function Home() {
                           <Table className="text-sm w-auto">
                             <TableHeader>
                               <TableRow className="bg-muted/50">
+                                <TableHead rowSpan={2} className="text-center font-semibold py-1 px-2 whitespace-nowrap">#</TableHead>
                                 <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50 py-1 px-2">Feed</TableHead>
                                 <TableHead className="text-center font-semibold py-1 px-2 whitespace-nowrap">Splices : {totalSpliceRows}</TableHead>
                                 <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50 py-1 px-2">Distribution</TableHead>
@@ -672,168 +673,185 @@ export default function Home() {
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {prefixCircuits.flatMap((circuit, circuitIndex) => {
-                                const distributionCable = cables.find((c) => c.id === circuit.cableId);
-                                const feedCable = circuit.feedCableId ? cables.find((c) => c.id === circuit.feedCableId) : undefined;
-                                
-                                const rowBgColor = circuitIndex % 2 === 0 
-                                  ? "bg-white dark:bg-background" 
-                                  : "bg-gray-200 dark:bg-muted/50";
-                                
-                                if (!feedCable) {
-                                  return [(
-                                    <TableRow key={circuit.id} className={rowBgColor}>
-                                      <TableCell colSpan={allFullRibbons ? 5 : 7} className="text-center text-muted-foreground">
-                                        Circuit {circuit.circuitId} - No feed cable selected.
-                                      </TableCell>
-                                    </TableRow>
-                                  )];
-                                }
-                                
-                                const circuitIdParts = circuit.circuitId.split(',');
-                                const circuitPrefix = circuitIdParts[0] || "";
-                                const circuitRange = circuitIdParts[1] || "";
-                                const rangeParts = circuitRange.split('-');
-                                
-                                if (rangeParts.length !== 2 || !rangeParts[0] || !rangeParts[1]) {
-                                  return [(
-                                    <TableRow key={circuit.id} className={rowBgColor}>
-                                      <TableCell colSpan={allFullRibbons ? 5 : 7} className="text-center text-muted-foreground">
-                                        Circuit {circuit.circuitId} - Invalid format.
-                                      </TableCell>
-                                    </TableRow>
-                                  )];
-                                }
-                                
-                                const rangeStart = parseInt(rangeParts[0].trim());
-                                const rangeEnd = parseInt(rangeParts[1].trim());
-                                
-                                if (isNaN(rangeStart) || isNaN(rangeEnd)) {
-                                  return [(
-                                    <TableRow key={circuit.id} className={rowBgColor}>
-                                      <TableCell colSpan={allFullRibbons ? 5 : 7} className="text-center text-muted-foreground">
-                                        Circuit {circuit.circuitId} - Invalid range.
-                                      </TableCell>
-                                    </TableRow>
-                                  )];
-                                }
-                                
-                                if (allFullRibbons) {
-                                  const ribbonRows = [];
-                                  const distFiberStart = circuit.fiberStart;
-                                  const distFiberEnd = circuit.fiberEnd;
-                                  const feedFiberStart = circuit.feedFiberStart || circuit.fiberStart;
-                                  const feedFiberEnd = circuit.feedFiberEnd || circuit.fiberEnd;
+                              {(() => {
+                                let rowNumber = 0;
+                                return prefixCircuits.flatMap((circuit, circuitIndex) => {
+                                  const distributionCable = cables.find((c) => c.id === circuit.cableId);
+                                  const feedCable = circuit.feedCableId ? cables.find((c) => c.id === circuit.feedCableId) : undefined;
                                   
-                                  if (!distFiberStart || !distFiberEnd || !feedFiberStart || !feedFiberEnd) {
+                                  const rowBgColor = circuitIndex % 2 === 0 
+                                    ? "bg-white dark:bg-background" 
+                                    : "bg-gray-200 dark:bg-muted/50";
+                                  
+                                  if (!feedCable) {
+                                    rowNumber++;
                                     return [(
                                       <TableRow key={circuit.id} className={rowBgColor}>
-                                        <TableCell colSpan={5} className="text-center text-muted-foreground">
-                                          Circuit {circuit.circuitId} - Invalid fiber positions.
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                          Circuit {circuit.circuitId} - No feed cable selected.
                                         </TableCell>
                                       </TableRow>
                                     )];
                                   }
                                   
-                                  let currentDistFiber = distFiberStart;
-                                  let currentFeedFiber = feedFiberStart;
+                                  const circuitIdParts = circuit.circuitId.split(',');
+                                  const circuitPrefix = circuitIdParts[0] || "";
+                                  const circuitRange = circuitIdParts[1] || "";
+                                  const rangeParts = circuitRange.split('-');
                                   
-                                  while (currentDistFiber <= distFiberEnd) {
-                                    const currentDistRibbon = getRibbonNumber(currentDistFiber);
-                                    const currentFeedRibbon = getRibbonNumber(currentFeedFiber);
-                                    
-                                    const distRibbonEnd = currentDistRibbon * ribbonSize;
-                                    const distSegmentEnd = Math.min(distRibbonEnd, distFiberEnd);
-                                    const feedRibbonEnd = currentFeedRibbon * ribbonSize;
-                                    const feedSegmentEnd = Math.min(feedRibbonEnd, feedFiberEnd);
-                                    
-                                    const distFiberCount = distSegmentEnd - currentDistFiber + 1;
-                                    const feedFiberCount = feedSegmentEnd - currentFeedFiber + 1;
-                                    const segmentFiberCount = Math.min(distFiberCount, feedFiberCount);
-                                    
-                                    const fiberOffset = currentDistFiber - distFiberStart;
-                                    const circuitStart = rangeStart + fiberOffset;
-                                    const circuitEnd = circuitStart + segmentFiberCount - 1;
-                                    
-                                    const distStrandStart = getFiberPositionInRibbon(currentDistFiber);
-                                    const distStrandEnd = getFiberPositionInRibbon(currentDistFiber + segmentFiberCount - 1);
-                                    const feedStrandStart = getFiberPositionInRibbon(currentFeedFiber);
-                                    const feedStrandEnd = getFiberPositionInRibbon(currentFeedFiber + segmentFiberCount - 1);
-                                    
-                                    const feedRibbonColor = getColorForRibbon(currentFeedRibbon);
-                                    const distRibbonColor = getColorForRibbon(currentDistRibbon);
-                                    
-                                    ribbonRows.push(
-                                      <TableRow key={`${circuit.id}-segment-${currentDistFiber}`} className={rowBgColor}>
-                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
-                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>
-                                          R{currentFeedRibbon}:{feedStrandStart}{feedStrandStart !== feedStrandEnd ? `-${feedStrandEnd}` : ''}
-                                        </TableCell>
-                                        <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitStart}-{circuitEnd}</TableCell>
-                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>
-                                          R{currentDistRibbon}:{distStrandStart}{distStrandStart !== distStrandEnd ? `-${distStrandEnd}` : ''}
-                                        </TableCell>
-                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
-                                      </TableRow>
-                                    );
-                                    
-                                    currentDistFiber += segmentFiberCount;
-                                    currentFeedFiber += segmentFiberCount;
-                                  }
-                                  
-                                  return ribbonRows;
-                                } else {
-                                  const fiberRows = [];
-                                  
-                                  if (!circuit.fiberStart || !circuit.fiberEnd) {
+                                  if (rangeParts.length !== 2 || !rangeParts[0] || !rangeParts[1]) {
+                                    rowNumber++;
                                     return [(
                                       <TableRow key={circuit.id} className={rowBgColor}>
-                                        <TableCell colSpan={7} className="text-center text-muted-foreground">
-                                          Circuit {circuit.circuitId} - Invalid fiber positions.
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                          Circuit {circuit.circuitId} - Invalid format.
+                                        </TableCell>
+                                      </TableRow>
+                                  )];
+                                }
+                                
+                                  const rangeStart = parseInt(rangeParts[0].trim());
+                                  const rangeEnd = parseInt(rangeParts[1].trim());
+                                  
+                                  if (isNaN(rangeStart) || isNaN(rangeEnd)) {
+                                    rowNumber++;
+                                    return [(
+                                      <TableRow key={circuit.id} className={rowBgColor}>
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                          Circuit {circuit.circuitId} - Invalid range.
                                         </TableCell>
                                       </TableRow>
                                     )];
                                   }
                                   
-                                  for (let i = 0; i < circuit.fiberEnd - circuit.fiberStart + 1; i++) {
-                                    const distFiber = circuit.fiberStart + i;
-                                    const feedFiber = (circuit.feedFiberStart || circuit.fiberStart) + i;
+                                  if (allFullRibbons) {
+                                    const ribbonRows = [];
+                                    const distFiberStart = circuit.fiberStart;
+                                    const distFiberEnd = circuit.fiberEnd;
+                                    const feedFiberStart = circuit.feedFiberStart || circuit.fiberStart;
+                                    const feedFiberEnd = circuit.feedFiberEnd || circuit.fiberEnd;
                                     
-                                    const distRibbon = getRibbonNumber(distFiber);
-                                    const distStrand = getFiberPositionInRibbon(distFiber);
-                                    const feedRibbon = getRibbonNumber(feedFiber);
-                                    const feedStrand = getFiberPositionInRibbon(feedFiber);
+                                    if (!distFiberStart || !distFiberEnd || !feedFiberStart || !feedFiberEnd) {
+                                      rowNumber++;
+                                      return [(
+                                        <TableRow key={circuit.id} className={rowBgColor}>
+                                          <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                          <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                            Circuit {circuit.circuitId} - Invalid fiber positions.
+                                          </TableCell>
+                                        </TableRow>
+                                      )];
+                                    }
                                     
-                                    const circuitNumber = rangeStart + i;
-                                    const feedColor = getColorForStrand(feedStrand);
-                                    const distColor = getColorForStrand(distStrand);
-                                    const feedRibbonColor = getColorForRibbon(feedRibbon);
-                                    const distRibbonColor = getColorForRibbon(distRibbon);
+                                    let currentDistFiber = distFiberStart;
+                                    let currentFeedFiber = feedFiberStart;
                                     
-                                    fiberRows.push(
-                                      <TableRow key={`${circuit.id}-fiber-${i}`} className={rowBgColor}>
-                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
-                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>R{feedRibbon}</TableCell>
-                                        <TableCell className="text-center py-1 px-2">
-                                          <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${feedColor.bg} ${feedColor.text} font-mono font-semibold text-xs`}>
-                                            {feedStrand}
-                                          </div>
-                                        </TableCell>
-                                        <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitNumber}</TableCell>
-                                        <TableCell className="text-center py-1 px-2">
-                                          <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${distColor.bg} ${distColor.text} font-mono font-semibold text-xs`}>
-                                            {distStrand}
-                                          </div>
-                                        </TableCell>
-                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>R{distRibbon}</TableCell>
-                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
-                                      </TableRow>
-                                    );
+                                    while (currentDistFiber <= distFiberEnd) {
+                                      const currentDistRibbon = getRibbonNumber(currentDistFiber);
+                                      const currentFeedRibbon = getRibbonNumber(currentFeedFiber);
+                                      
+                                      const distRibbonEnd = currentDistRibbon * ribbonSize;
+                                      const distSegmentEnd = Math.min(distRibbonEnd, distFiberEnd);
+                                      const feedRibbonEnd = currentFeedRibbon * ribbonSize;
+                                      const feedSegmentEnd = Math.min(feedRibbonEnd, feedFiberEnd);
+                                      
+                                      const distFiberCount = distSegmentEnd - currentDistFiber + 1;
+                                      const feedFiberCount = feedSegmentEnd - currentFeedFiber + 1;
+                                      const segmentFiberCount = Math.min(distFiberCount, feedFiberCount);
+                                      
+                                      const fiberOffset = currentDistFiber - distFiberStart;
+                                      const circuitStart = rangeStart + fiberOffset;
+                                      const circuitEnd = circuitStart + segmentFiberCount - 1;
+                                      
+                                      const distStrandStart = getFiberPositionInRibbon(currentDistFiber);
+                                      const distStrandEnd = getFiberPositionInRibbon(currentDistFiber + segmentFiberCount - 1);
+                                      const feedStrandStart = getFiberPositionInRibbon(currentFeedFiber);
+                                      const feedStrandEnd = getFiberPositionInRibbon(currentFeedFiber + segmentFiberCount - 1);
+                                      
+                                      const feedRibbonColor = getColorForRibbon(currentFeedRibbon);
+                                      const distRibbonColor = getColorForRibbon(currentDistRibbon);
+                                      
+                                      rowNumber++;
+                                      ribbonRows.push(
+                                        <TableRow key={`${circuit.id}-segment-${currentDistFiber}`} className={rowBgColor}>
+                                          <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                          <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
+                                          <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>
+                                            R{currentFeedRibbon}:{feedStrandStart}{feedStrandStart !== feedStrandEnd ? `-${feedStrandEnd}` : ''}
+                                          </TableCell>
+                                          <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitStart}-{circuitEnd}</TableCell>
+                                          <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>
+                                            R{currentDistRibbon}:{distStrandStart}{distStrandStart !== distStrandEnd ? `-${distStrandEnd}` : ''}
+                                          </TableCell>
+                                          <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
+                                        </TableRow>
+                                      );
+                                      
+                                      currentDistFiber += segmentFiberCount;
+                                      currentFeedFiber += segmentFiberCount;
+                                    }
+                                    
+                                    return ribbonRows;
+                                  } else {
+                                    const fiberRows = [];
+                                    
+                                    if (!circuit.fiberStart || !circuit.fiberEnd) {
+                                      rowNumber++;
+                                      return [(
+                                        <TableRow key={circuit.id} className={rowBgColor}>
+                                          <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                            Circuit {circuit.circuitId} - Invalid fiber positions.
+                                          </TableCell>
+                                        </TableRow>
+                                      )];
+                                    }
+                                    
+                                    for (let i = 0; i < circuit.fiberEnd - circuit.fiberStart + 1; i++) {
+                                      const distFiber = circuit.fiberStart + i;
+                                      const feedFiber = (circuit.feedFiberStart || circuit.fiberStart) + i;
+                                      
+                                      const distRibbon = getRibbonNumber(distFiber);
+                                      const distStrand = getFiberPositionInRibbon(distFiber);
+                                      const feedRibbon = getRibbonNumber(feedFiber);
+                                      const feedStrand = getFiberPositionInRibbon(feedFiber);
+                                      
+                                      const circuitNumber = rangeStart + i;
+                                      const feedColor = getColorForStrand(feedStrand);
+                                      const distColor = getColorForStrand(distStrand);
+                                      const feedRibbonColor = getColorForRibbon(feedRibbon);
+                                      const distRibbonColor = getColorForRibbon(distRibbon);
+                                      
+                                      rowNumber++;
+                                      fiberRows.push(
+                                        <TableRow key={`${circuit.id}-fiber-${i}`} className={rowBgColor}>
+                                          <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                          <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
+                                          <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>R{feedRibbon}</TableCell>
+                                          <TableCell className="text-center py-1 px-2">
+                                            <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${feedColor.bg} ${feedColor.text} font-mono font-semibold text-xs`}>
+                                              {feedStrand}
+                                            </div>
+                                          </TableCell>
+                                          <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitNumber}</TableCell>
+                                          <TableCell className="text-center py-1 px-2">
+                                            <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${distColor.bg} ${distColor.text} font-mono font-semibold text-xs`}>
+                                              {distStrand}
+                                            </div>
+                                          </TableCell>
+                                          <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>R{distRibbon}</TableCell>
+                                          <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
+                                        </TableRow>
+                                      );
+                                    }
+                                    
+                                    return fiberRows;
                                   }
-                                  
-                                  return fiberRows;
-                                }
-                              })}
+                                });
+                              })()}
                             </TableBody>
                           </Table>
                         </div>
@@ -882,6 +900,7 @@ export default function Home() {
                         <Table className="text-sm w-auto">
                           <TableHeader>
                             <TableRow className="bg-muted/50">
+                              <TableHead rowSpan={2} className="text-center font-semibold py-1 px-2 whitespace-nowrap">#</TableHead>
                               <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50 py-1 px-2">Feed</TableHead>
                               <TableHead className="text-center font-semibold py-1 px-2 whitespace-nowrap">Splices : {totalSpliceRows}</TableHead>
                               <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50 py-1 px-2">Distribution</TableHead>
@@ -897,24 +916,28 @@ export default function Home() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {cableSplicedCircuits.flatMap((circuit, circuitIndex) => {
-                              const distributionCable = cables.find((c) => c.id === circuit.cableId);
-                              const feedCable = circuit.feedCableId ? cables.find((c) => c.id === circuit.feedCableId) : undefined;
-                              
-                              // Alternate background color based on circuit index
-                              const rowBgColor = circuitIndex % 2 === 0 
-                                ? "bg-white dark:bg-background" 
-                                : "bg-gray-200 dark:bg-muted/50";
-                              
-                              if (!feedCable) {
-                                return [(
-                                  <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
-                                    <TableCell colSpan={allFullRibbons ? 5 : 7} className="text-center text-muted-foreground">
-                                      Circuit {circuit.circuitId} in {distributionCable?.name} - No feed cable selected. Please re-check the circuit.
-                                    </TableCell>
-                                  </TableRow>
-                                )];
-                              }
+                            {(() => {
+                              let rowNumber = 0;
+                              return cableSplicedCircuits.flatMap((circuit, circuitIndex) => {
+                                const distributionCable = cables.find((c) => c.id === circuit.cableId);
+                                const feedCable = circuit.feedCableId ? cables.find((c) => c.id === circuit.feedCableId) : undefined;
+                                
+                                // Alternate background color based on circuit index
+                                const rowBgColor = circuitIndex % 2 === 0 
+                                  ? "bg-white dark:bg-background" 
+                                  : "bg-gray-200 dark:bg-muted/50";
+                                
+                                if (!feedCable) {
+                                  rowNumber++;
+                                  return [(
+                                    <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
+                                      <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                        Circuit {circuit.circuitId} in {distributionCable?.name} - No feed cable selected. Please re-check the circuit.
+                                      </TableCell>
+                                    </TableRow>
+                                  )];
+                                }
                               
                               // Fiber optic color codes (12 colors, repeating pattern)
                               const fiberColors = [
@@ -945,170 +968,163 @@ export default function Home() {
                               const rangeParts = circuitRange.split('-');
                               
                               // Safety check for valid circuit ID format
-                              if (rangeParts.length !== 2 || !rangeParts[0] || !rangeParts[1]) {
-                                return [(
-                                  <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
-                                    <TableCell colSpan={allFullRibbons ? 5 : 7} className="text-center text-muted-foreground">
-                                      Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit ID format.
-                                    </TableCell>
-                                  </TableRow>
-                                )];
-                              }
-                              
-                              const rangeStart = parseInt(rangeParts[0].trim());
-                              const rangeEnd = parseInt(rangeParts[1].trim());
-                              
-                              // Safety check for valid numbers
-                              if (isNaN(rangeStart) || isNaN(rangeEnd)) {
-                                return [(
-                                  <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
-                                    <TableCell colSpan={allFullRibbons ? 5 : 7} className="text-center text-muted-foreground">
-                                      Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit number range.
-                                    </TableCell>
-                                  </TableRow>
-                                )];
-                              }
-                              
-                              if (allFullRibbons) {
-                                // Full ribbon view: show based on actual fiber positions
-                                // Need to handle circuits that may span multiple ribbons
-                                const ribbonRows = [];
-                                
-                                // Group fibers by ribbon for both feed and distribution
-                                const distFiberStart = circuit.fiberStart;
-                                const distFiberEnd = circuit.fiberEnd;
-                                const feedFiberStart = circuit.feedFiberStart || circuit.fiberStart;
-                                const feedFiberEnd = circuit.feedFiberEnd || circuit.fiberEnd;
-                                
-                                // Safety check for valid fiber positions
-                                if (!distFiberStart || !distFiberEnd || !feedFiberStart || !feedFiberEnd ||
-                                    isNaN(distFiberStart) || isNaN(distFiberEnd) || isNaN(feedFiberStart) || isNaN(feedFiberEnd)) {
+                                if (rangeParts.length !== 2 || !rangeParts[0] || !rangeParts[1]) {
+                                  rowNumber++;
                                   return [(
                                     <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
-                                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                                        Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid fiber positions.
+                                      <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                        Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit ID format.
                                       </TableCell>
                                     </TableRow>
                                   )];
                                 }
                                 
-                                // Find which ribbons this circuit spans on distribution side
-                                const distStartRibbon = getRibbonNumber(distFiberStart);
-                                const distEndRibbon = getRibbonNumber(distFiberEnd);
+                                const rangeStart = parseInt(rangeParts[0].trim());
+                                const rangeEnd = parseInt(rangeParts[1].trim());
                                 
-                                // Find which ribbons this circuit spans on feed side
-                                const feedStartRibbon = getRibbonNumber(feedFiberStart);
-                                const feedEndRibbon = getRibbonNumber(feedFiberEnd);
-                                
-                                // Process each group of fibers that share the same ribbon pair
-                                let currentDistFiber = distFiberStart;
-                                let currentFeedFiber = feedFiberStart;
-                                
-                                while (currentDistFiber <= distFiberEnd) {
-                                  const currentDistRibbon = getRibbonNumber(currentDistFiber);
-                                  const currentFeedRibbon = getRibbonNumber(currentFeedFiber);
-                                  
-                                  // Find end of current ribbon segment for distribution
-                                  const distRibbonEnd = currentDistRibbon * ribbonSize;
-                                  const distSegmentEnd = Math.min(distRibbonEnd, distFiberEnd);
-                                  
-                                  // Find end of current ribbon segment for feed
-                                  const feedRibbonEnd = currentFeedRibbon * ribbonSize;
-                                  const feedSegmentEnd = Math.min(feedRibbonEnd, feedFiberEnd);
-                                  
-                                  // Calculate how many fibers in this segment
-                                  const distFiberCount = distSegmentEnd - currentDistFiber + 1;
-                                  const feedFiberCount = feedSegmentEnd - currentFeedFiber + 1;
-                                  const segmentFiberCount = Math.min(distFiberCount, feedFiberCount);
-                                  
-                                  // Calculate circuit IDs for this segment
-                                  const fiberOffset = currentDistFiber - distFiberStart;
-                                  const circuitStart = rangeStart + fiberOffset;
-                                  const circuitEnd = circuitStart + segmentFiberCount - 1;
-                                  
-                                  // Get strand positions
-                                  const distStrandStart = getFiberPositionInRibbon(currentDistFiber);
-                                  const distStrandEnd = getFiberPositionInRibbon(currentDistFiber + segmentFiberCount - 1);
-                                  const feedStrandStart = getFiberPositionInRibbon(currentFeedFiber);
-                                  const feedStrandEnd = getFiberPositionInRibbon(currentFeedFiber + segmentFiberCount - 1);
-                                  
-                                  const feedRibbonColor = getColorForRibbon(currentFeedRibbon);
-                                  const distRibbonColor = getColorForRibbon(currentDistRibbon);
-                                  
-                                  ribbonRows.push(
-                                    <TableRow key={`${circuit.id}-segment-${currentDistFiber}`} className={rowBgColor} data-testid={`row-ribbon-${circuit.id}-${currentDistFiber}`}>
-                                      <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
-                                      <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>
-                                        R{currentFeedRibbon}:{feedStrandStart}{feedStrandStart !== feedStrandEnd ? `-${feedStrandEnd}` : ''}
-                                      </TableCell>
-                                      <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitStart}-{circuitEnd}</TableCell>
-                                      <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>
-                                        R{currentDistRibbon}:{distStrandStart}{distStrandStart !== distStrandEnd ? `-${distStrandEnd}` : ''}
-                                      </TableCell>
-                                      <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
-                                    </TableRow>
-                                  );
-                                  
-                                  // Move to next segment
-                                  currentDistFiber += segmentFiberCount;
-                                  currentFeedFiber += segmentFiberCount;
-                                }
-                                
-                                return ribbonRows;
-                              } else {
-                                // Fiber view: show one row per fiber (original behavior)
-                                const fiberRows = [];
-                                
-                                // Safety check for valid fiber positions
-                                if (!circuit.fiberStart || !circuit.fiberEnd || isNaN(circuit.fiberStart) || isNaN(circuit.fiberEnd)) {
+                                // Safety check for valid numbers
+                                if (isNaN(rangeStart) || isNaN(rangeEnd)) {
+                                  rowNumber++;
                                   return [(
                                     <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
-                                      <TableCell colSpan={7} className="text-center text-muted-foreground">
-                                        Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid fiber positions.
+                                      <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                        Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit number range.
                                       </TableCell>
                                     </TableRow>
                                   )];
                                 }
                                 
-                                for (let i = 0; i < circuit.fiberEnd - circuit.fiberStart + 1; i++) {
-                                  const distFiber = circuit.fiberStart + i;
-                                  const feedFiber = (circuit.feedFiberStart || circuit.fiberStart) + i;
+                                if (allFullRibbons) {
+                                  // Full ribbon view
+                                  const ribbonRows = [];
                                   
-                                  const distRibbon = getRibbonNumber(distFiber);
-                                  const distStrand = getFiberPositionInRibbon(distFiber);
-                                  const feedRibbon = getRibbonNumber(feedFiber);
-                                  const feedStrand = getFiberPositionInRibbon(feedFiber);
+                                  const distFiberStart = circuit.fiberStart;
+                                  const distFiberEnd = circuit.fiberEnd;
+                                  const feedFiberStart = circuit.feedFiberStart || circuit.fiberStart;
+                                  const feedFiberEnd = circuit.feedFiberEnd || circuit.fiberEnd;
                                   
-                                  const circuitNumber = rangeStart + i;
-                                  const feedColor = getColorForStrand(feedStrand);
-                                  const distColor = getColorForStrand(distStrand);
-                                  const feedRibbonColor = getColorForRibbon(feedRibbon);
-                                  const distRibbonColor = getColorForRibbon(distRibbon);
+                                  if (!distFiberStart || !distFiberEnd || !feedFiberStart || !feedFiberEnd ||
+                                      isNaN(distFiberStart) || isNaN(distFiberEnd) || isNaN(feedFiberStart) || isNaN(feedFiberEnd)) {
+                                    rowNumber++;
+                                    return [(
+                                      <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                          Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid fiber positions.
+                                        </TableCell>
+                                      </TableRow>
+                                    )];
+                                  }
                                   
-                                  fiberRows.push(
-                                    <TableRow key={`${circuit.id}-fiber-${i}`} className={rowBgColor} data-testid={`row-fiber-${circuit.id}-${i}`}>
-                                      <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
-                                      <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>R{feedRibbon}</TableCell>
-                                      <TableCell className="text-center py-1 px-2">
-                                        <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${feedColor.bg} ${feedColor.text} font-mono font-semibold text-xs`}>
-                                          {feedStrand}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitNumber}</TableCell>
-                                      <TableCell className="text-center py-1 px-2">
-                                        <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${distColor.bg} ${distColor.text} font-mono font-semibold text-xs`}>
-                                          {distStrand}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>R{distRibbon}</TableCell>
-                                      <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
-                                    </TableRow>
-                                  );
+                                  let currentDistFiber = distFiberStart;
+                                  let currentFeedFiber = feedFiberStart;
+                                  
+                                  while (currentDistFiber <= distFiberEnd) {
+                                    const currentDistRibbon = getRibbonNumber(currentDistFiber);
+                                    const currentFeedRibbon = getRibbonNumber(currentFeedFiber);
+                                    
+                                    const distRibbonEnd = currentDistRibbon * ribbonSize;
+                                    const distSegmentEnd = Math.min(distRibbonEnd, distFiberEnd);
+                                    const feedRibbonEnd = currentFeedRibbon * ribbonSize;
+                                    const feedSegmentEnd = Math.min(feedRibbonEnd, feedFiberEnd);
+                                    
+                                    const distFiberCount = distSegmentEnd - currentDistFiber + 1;
+                                    const feedFiberCount = feedSegmentEnd - currentFeedFiber + 1;
+                                    const segmentFiberCount = Math.min(distFiberCount, feedFiberCount);
+                                    
+                                    const fiberOffset = currentDistFiber - distFiberStart;
+                                    const circuitStart = rangeStart + fiberOffset;
+                                    const circuitEnd = circuitStart + segmentFiberCount - 1;
+                                    
+                                    const distStrandStart = getFiberPositionInRibbon(currentDistFiber);
+                                    const distStrandEnd = getFiberPositionInRibbon(currentDistFiber + segmentFiberCount - 1);
+                                    const feedStrandStart = getFiberPositionInRibbon(currentFeedFiber);
+                                    const feedStrandEnd = getFiberPositionInRibbon(currentFeedFiber + segmentFiberCount - 1);
+                                    
+                                    const feedRibbonColor = getColorForRibbon(currentFeedRibbon);
+                                    const distRibbonColor = getColorForRibbon(currentDistRibbon);
+                                    
+                                    rowNumber++;
+                                    ribbonRows.push(
+                                      <TableRow key={`${circuit.id}-segment-${currentDistFiber}`} className={rowBgColor} data-testid={`row-ribbon-${circuit.id}-${currentDistFiber}`}>
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
+                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>
+                                          R{currentFeedRibbon}:{feedStrandStart}{feedStrandStart !== feedStrandEnd ? `-${feedStrandEnd}` : ''}
+                                        </TableCell>
+                                        <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitStart}-{circuitEnd}</TableCell>
+                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>
+                                          R{currentDistRibbon}:{distStrandStart}{distStrandStart !== distStrandEnd ? `-${distStrandEnd}` : ''}
+                                        </TableCell>
+                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
+                                      </TableRow>
+                                    );
+                                    
+                                    currentDistFiber += segmentFiberCount;
+                                    currentFeedFiber += segmentFiberCount;
+                                  }
+                                  
+                                  return ribbonRows;
+                                } else {
+                                  // Fiber view
+                                  const fiberRows = [];
+                                  
+                                  if (!circuit.fiberStart || !circuit.fiberEnd || isNaN(circuit.fiberStart) || isNaN(circuit.fiberEnd)) {
+                                    rowNumber++;
+                                    return [(
+                                      <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                          Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid fiber positions.
+                                        </TableCell>
+                                      </TableRow>
+                                    )];
+                                  }
+                                  
+                                  for (let i = 0; i < circuit.fiberEnd - circuit.fiberStart + 1; i++) {
+                                    const distFiber = circuit.fiberStart + i;
+                                    const feedFiber = (circuit.feedFiberStart || circuit.fiberStart) + i;
+                                    
+                                    const distRibbon = getRibbonNumber(distFiber);
+                                    const distStrand = getFiberPositionInRibbon(distFiber);
+                                    const feedRibbon = getRibbonNumber(feedFiber);
+                                    const feedStrand = getFiberPositionInRibbon(feedFiber);
+                                    
+                                    const circuitNumber = rangeStart + i;
+                                    const feedColor = getColorForStrand(feedStrand);
+                                    const distColor = getColorForStrand(distStrand);
+                                    const feedRibbonColor = getColorForRibbon(feedRibbon);
+                                    const distRibbonColor = getColorForRibbon(distRibbon);
+                                    
+                                    rowNumber++;
+                                    fiberRows.push(
+                                      <TableRow key={`${circuit.id}-fiber-${i}`} className={rowBgColor} data-testid={`row-fiber-${circuit.id}-${i}`}>
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
+                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>R{feedRibbon}</TableCell>
+                                        <TableCell className="text-center py-1 px-2">
+                                          <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${feedColor.bg} ${feedColor.text} font-mono font-semibold text-xs`}>
+                                            {feedStrand}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitNumber}</TableCell>
+                                        <TableCell className="text-center py-1 px-2">
+                                          <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${distColor.bg} ${distColor.text} font-mono font-semibold text-xs`}>
+                                            {distStrand}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>R{distRibbon}</TableCell>
+                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
+                                      </TableRow>
+                                    );
+                                  }
+                                  
+                                  return fiberRows;
                                 }
-                                
-                                return fiberRows;
-                              }
-                            })}
+                              });
+                            })()}
                           </TableBody>
                         </Table>
                       </div>
@@ -1163,6 +1179,7 @@ export default function Home() {
                         <Table className="text-sm w-auto">
                           <TableHeader>
                             <TableRow className="bg-muted/50">
+                              <TableHead rowSpan={2} className="text-center font-semibold py-1 px-2 whitespace-nowrap">#</TableHead>
                               <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50 py-1 px-2">Feed</TableHead>
                               <TableHead className="text-center font-semibold py-1 px-2 whitespace-nowrap">Splices : {totalSpliceRows}</TableHead>
                               <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50 py-1 px-2">Distribution</TableHead>
@@ -1178,190 +1195,205 @@ export default function Home() {
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {feedSplicedCircuits.flatMap((circuit, circuitIndex) => {
-                              const distributionCable = cables.find((c) => c.id === circuit.cableId);
-                              
-                              // Alternate background color based on circuit index
-                              const rowBgColor = circuitIndex % 2 === 0 
-                                ? "bg-white dark:bg-background" 
-                                : "bg-gray-200 dark:bg-muted/50";
-                              
-                              // Fiber optic color codes (12 colors, repeating pattern)
-                              const fiberColors = [
-                                { name: "blue", bg: "bg-blue-500", text: "text-white", colorClass: "text-blue-500" },
-                                { name: "orange", bg: "bg-orange-500", text: "text-white", colorClass: "text-orange-500" },
-                                { name: "green", bg: "bg-green-600", text: "text-white", colorClass: "text-green-600" },
-                                { name: "brown", bg: "bg-amber-700", text: "text-white", colorClass: "text-amber-700" },
-                                { name: "slate", bg: "bg-slate-500", text: "text-white", colorClass: "text-slate-500" },
-                                { name: "white", bg: "bg-white", text: "text-black", colorClass: "text-slate-700" },
-                                { name: "red", bg: "bg-red-600", text: "text-white", colorClass: "text-red-600" },
-                                { name: "black", bg: "bg-black", text: "text-white", colorClass: "text-slate-900" },
-                                { name: "yellow", bg: "bg-yellow-400", text: "text-black", colorClass: "text-yellow-500" },
-                                { name: "violet", bg: "bg-purple-600", text: "text-white", colorClass: "text-purple-600" },
-                                { name: "pink", bg: "bg-pink-500", text: "text-white", colorClass: "text-pink-500" },
-                                { name: "aqua", bg: "bg-cyan-400", text: "text-black", colorClass: "text-cyan-500" },
-                              ];
-                              
-                              const ribbonSize = 12;
-                              const getRibbonNumber = (fiber: number) => Math.ceil(fiber / ribbonSize);
-                              const getFiberPositionInRibbon = (fiber: number) => ((fiber - 1) % ribbonSize) + 1;
-                              const getColorForStrand = (strand: number) => fiberColors[(strand - 1) % 12];
-                              const getColorForRibbon = (ribbon: number) => fiberColors[(ribbon - 1) % 12];
-                              
-                              // Parse circuit ID to get the circuit numbers
-                              const circuitIdParts = circuit.circuitId.split(',');
-                              const circuitPrefix = circuitIdParts[0] || "";
-                              const circuitRange = circuitIdParts[1] || "";
-                              const rangeParts = circuitRange.split('-');
-                              
-                              // Safety check for valid circuit ID format
-                              if (rangeParts.length !== 2 || !rangeParts[0] || !rangeParts[1]) {
-                                return [(
-                                  <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-feed-spliced-circuit-${circuit.id}`}>
-                                    <TableCell colSpan={allFullRibbons ? 5 : 7} className="text-center text-muted-foreground">
-                                      Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit ID format.
-                                    </TableCell>
-                                  </TableRow>
-                                )];
-                              }
-                              
-                              const rangeStart = parseInt(rangeParts[0].trim());
-                              const rangeEnd = parseInt(rangeParts[1].trim());
-                              
-                              // Safety check for valid numbers
-                              if (isNaN(rangeStart) || isNaN(rangeEnd)) {
-                                return [(
-                                  <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-feed-spliced-circuit-${circuit.id}`}>
-                                    <TableCell colSpan={allFullRibbons ? 5 : 7} className="text-center text-muted-foreground">
-                                      Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit number range.
-                                    </TableCell>
-                                  </TableRow>
-                                )];
-                              }
-                              
-                              if (allFullRibbons) {
-                                // Full ribbon view
-                                const ribbonRows = [];
+                            {(() => {
+                              let rowNumber = 0;
+                              return feedSplicedCircuits.flatMap((circuit, circuitIndex) => {
+                                const distributionCable = cables.find((c) => c.id === circuit.cableId);
                                 
-                                const distFiberStart = circuit.fiberStart;
-                                const distFiberEnd = circuit.fiberEnd;
-                                const feedFiberStart = circuit.feedFiberStart || circuit.fiberStart;
-                                const feedFiberEnd = circuit.feedFiberEnd || circuit.fiberEnd;
+                                // Alternate background color based on circuit index
+                                const rowBgColor = circuitIndex % 2 === 0 
+                                  ? "bg-white dark:bg-background" 
+                                  : "bg-gray-200 dark:bg-muted/50";
                                 
-                                // Safety check for valid fiber positions
-                                if (!distFiberStart || !distFiberEnd || !feedFiberStart || !feedFiberEnd ||
-                                    isNaN(distFiberStart) || isNaN(distFiberEnd) || isNaN(feedFiberStart) || isNaN(feedFiberEnd)) {
+                                // Fiber optic color codes (12 colors, repeating pattern)
+                                const fiberColors = [
+                                  { name: "blue", bg: "bg-blue-500", text: "text-white", colorClass: "text-blue-500" },
+                                  { name: "orange", bg: "bg-orange-500", text: "text-white", colorClass: "text-orange-500" },
+                                  { name: "green", bg: "bg-green-600", text: "text-white", colorClass: "text-green-600" },
+                                  { name: "brown", bg: "bg-amber-700", text: "text-white", colorClass: "text-amber-700" },
+                                  { name: "slate", bg: "bg-slate-500", text: "text-white", colorClass: "text-slate-500" },
+                                  { name: "white", bg: "bg-white", text: "text-black", colorClass: "text-slate-700" },
+                                  { name: "red", bg: "bg-red-600", text: "text-white", colorClass: "text-red-600" },
+                                  { name: "black", bg: "bg-black", text: "text-white", colorClass: "text-slate-900" },
+                                  { name: "yellow", bg: "bg-yellow-400", text: "text-black", colorClass: "text-yellow-500" },
+                                  { name: "violet", bg: "bg-purple-600", text: "text-white", colorClass: "text-purple-600" },
+                                  { name: "pink", bg: "bg-pink-500", text: "text-white", colorClass: "text-pink-500" },
+                                  { name: "aqua", bg: "bg-cyan-400", text: "text-black", colorClass: "text-cyan-500" },
+                                ];
+                                
+                                const ribbonSize = 12;
+                                const getRibbonNumber = (fiber: number) => Math.ceil(fiber / ribbonSize);
+                                const getFiberPositionInRibbon = (fiber: number) => ((fiber - 1) % ribbonSize) + 1;
+                                const getColorForStrand = (strand: number) => fiberColors[(strand - 1) % 12];
+                                const getColorForRibbon = (ribbon: number) => fiberColors[(ribbon - 1) % 12];
+                                
+                                // Parse circuit ID to get the circuit numbers
+                                const circuitIdParts = circuit.circuitId.split(',');
+                                const circuitPrefix = circuitIdParts[0] || "";
+                                const circuitRange = circuitIdParts[1] || "";
+                                const rangeParts = circuitRange.split('-');
+                                
+                                // Safety check for valid circuit ID format
+                                if (rangeParts.length !== 2 || !rangeParts[0] || !rangeParts[1]) {
+                                  rowNumber++;
                                   return [(
                                     <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-feed-spliced-circuit-${circuit.id}`}>
-                                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                                        Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid fiber positions.
+                                      <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                        Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit ID format.
                                       </TableCell>
                                     </TableRow>
                                   )];
                                 }
                                 
-                                // Process each group of fibers that share the same ribbon pair
-                                let currentDistFiber = distFiberStart;
-                                let currentFeedFiber = feedFiberStart;
+                                const rangeStart = parseInt(rangeParts[0].trim());
+                                const rangeEnd = parseInt(rangeParts[1].trim());
                                 
-                                while (currentDistFiber <= distFiberEnd) {
-                                  const currentDistRibbon = getRibbonNumber(currentDistFiber);
-                                  const currentFeedRibbon = getRibbonNumber(currentFeedFiber);
-                                  
-                                  const distRibbonEnd = currentDistRibbon * ribbonSize;
-                                  const distSegmentEnd = Math.min(distRibbonEnd, distFiberEnd);
-                                  
-                                  const feedRibbonEnd = currentFeedRibbon * ribbonSize;
-                                  const feedSegmentEnd = Math.min(feedRibbonEnd, feedFiberEnd);
-                                  
-                                  const distFiberCount = distSegmentEnd - currentDistFiber + 1;
-                                  const feedFiberCount = feedSegmentEnd - currentFeedFiber + 1;
-                                  const segmentFiberCount = Math.min(distFiberCount, feedFiberCount);
-                                  
-                                  const fiberOffset = currentDistFiber - distFiberStart;
-                                  const circuitStart = rangeStart + fiberOffset;
-                                  const circuitEnd = circuitStart + segmentFiberCount - 1;
-                                  
-                                  const distStrandStart = getFiberPositionInRibbon(currentDistFiber);
-                                  const distStrandEnd = getFiberPositionInRibbon(currentDistFiber + segmentFiberCount - 1);
-                                  const feedStrandStart = getFiberPositionInRibbon(currentFeedFiber);
-                                  const feedStrandEnd = getFiberPositionInRibbon(currentFeedFiber + segmentFiberCount - 1);
-                                  
-                                  const feedRibbonColor = getColorForRibbon(currentFeedRibbon);
-                                  const distRibbonColor = getColorForRibbon(currentDistRibbon);
-                                  
-                                  ribbonRows.push(
-                                    <TableRow key={`${circuit.id}-feed-segment-${currentDistFiber}`} className={rowBgColor} data-testid={`row-feed-ribbon-${circuit.id}-${currentDistFiber}`}>
-                                      <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
-                                      <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>
-                                        R{currentFeedRibbon}:{feedStrandStart}{feedStrandStart !== feedStrandEnd ? `-${feedStrandEnd}` : ''}
-                                      </TableCell>
-                                      <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitStart}-{circuitEnd}</TableCell>
-                                      <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>
-                                        R{currentDistRibbon}:{distStrandStart}{distStrandStart !== distStrandEnd ? `-${distStrandEnd}` : ''}
-                                      </TableCell>
-                                      <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
-                                    </TableRow>
-                                  );
-                                  
-                                  currentDistFiber += segmentFiberCount;
-                                  currentFeedFiber += segmentFiberCount;
-                                }
-                                
-                                return ribbonRows;
-                              } else {
-                                // Fiber view: show one row per fiber
-                                const fiberRows = [];
-                                
-                                if (!circuit.fiberStart || !circuit.fiberEnd || isNaN(circuit.fiberStart) || isNaN(circuit.fiberEnd)) {
+                                // Safety check for valid numbers
+                                if (isNaN(rangeStart) || isNaN(rangeEnd)) {
+                                  rowNumber++;
                                   return [(
                                     <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-feed-spliced-circuit-${circuit.id}`}>
-                                      <TableCell colSpan={7} className="text-center text-muted-foreground">
-                                        Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid fiber positions.
+                                      <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                        Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit number range.
                                       </TableCell>
                                     </TableRow>
                                   )];
                                 }
                                 
-                                for (let i = 0; i < circuit.fiberEnd - circuit.fiberStart + 1; i++) {
-                                  const distFiber = circuit.fiberStart + i;
-                                  const feedFiber = (circuit.feedFiberStart || circuit.fiberStart) + i;
+                                if (allFullRibbons) {
+                                  // Full ribbon view
+                                  const ribbonRows = [];
                                   
-                                  const distRibbon = getRibbonNumber(distFiber);
-                                  const distStrand = getFiberPositionInRibbon(distFiber);
-                                  const feedRibbon = getRibbonNumber(feedFiber);
-                                  const feedStrand = getFiberPositionInRibbon(feedFiber);
+                                  const distFiberStart = circuit.fiberStart;
+                                  const distFiberEnd = circuit.fiberEnd;
+                                  const feedFiberStart = circuit.feedFiberStart || circuit.fiberStart;
+                                  const feedFiberEnd = circuit.feedFiberEnd || circuit.fiberEnd;
                                   
-                                  const circuitNumber = rangeStart + i;
-                                  const feedColor = getColorForStrand(feedStrand);
-                                  const distColor = getColorForStrand(distStrand);
-                                  const feedRibbonColor = getColorForRibbon(feedRibbon);
-                                  const distRibbonColor = getColorForRibbon(distRibbon);
+                                  // Safety check for valid fiber positions
+                                  if (!distFiberStart || !distFiberEnd || !feedFiberStart || !feedFiberEnd ||
+                                      isNaN(distFiberStart) || isNaN(distFiberEnd) || isNaN(feedFiberStart) || isNaN(feedFiberEnd)) {
+                                    rowNumber++;
+                                    return [(
+                                      <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-feed-spliced-circuit-${circuit.id}`}>
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                          Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid fiber positions.
+                                        </TableCell>
+                                      </TableRow>
+                                    )];
+                                  }
                                   
-                                  fiberRows.push(
-                                    <TableRow key={`${circuit.id}-feed-fiber-${i}`} className={rowBgColor} data-testid={`row-feed-fiber-${circuit.id}-${i}`}>
-                                      <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
-                                      <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>R{feedRibbon}</TableCell>
-                                      <TableCell className="text-center py-1 px-2">
-                                        <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${feedColor.bg} ${feedColor.text} font-mono font-semibold text-xs`}>
-                                          {feedStrand}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitNumber}</TableCell>
-                                      <TableCell className="text-center py-1 px-2">
-                                        <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${distColor.bg} ${distColor.text} font-mono font-semibold text-xs`}>
-                                          {distStrand}
-                                        </div>
-                                      </TableCell>
-                                      <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>R{distRibbon}</TableCell>
-                                      <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
-                                    </TableRow>
-                                  );
+                                  // Process each group of fibers that share the same ribbon pair
+                                  let currentDistFiber = distFiberStart;
+                                  let currentFeedFiber = feedFiberStart;
+                                  
+                                  while (currentDistFiber <= distFiberEnd) {
+                                    const currentDistRibbon = getRibbonNumber(currentDistFiber);
+                                    const currentFeedRibbon = getRibbonNumber(currentFeedFiber);
+                                    
+                                    const distRibbonEnd = currentDistRibbon * ribbonSize;
+                                    const distSegmentEnd = Math.min(distRibbonEnd, distFiberEnd);
+                                    
+                                    const feedRibbonEnd = currentFeedRibbon * ribbonSize;
+                                    const feedSegmentEnd = Math.min(feedRibbonEnd, feedFiberEnd);
+                                    
+                                    const distFiberCount = distSegmentEnd - currentDistFiber + 1;
+                                    const feedFiberCount = feedSegmentEnd - currentFeedFiber + 1;
+                                    const segmentFiberCount = Math.min(distFiberCount, feedFiberCount);
+                                    
+                                    const fiberOffset = currentDistFiber - distFiberStart;
+                                    const circuitStart = rangeStart + fiberOffset;
+                                    const circuitEnd = circuitStart + segmentFiberCount - 1;
+                                    
+                                    const distStrandStart = getFiberPositionInRibbon(currentDistFiber);
+                                    const distStrandEnd = getFiberPositionInRibbon(currentDistFiber + segmentFiberCount - 1);
+                                    const feedStrandStart = getFiberPositionInRibbon(currentFeedFiber);
+                                    const feedStrandEnd = getFiberPositionInRibbon(currentFeedFiber + segmentFiberCount - 1);
+                                    
+                                    const feedRibbonColor = getColorForRibbon(currentFeedRibbon);
+                                    const distRibbonColor = getColorForRibbon(currentDistRibbon);
+                                    
+                                    rowNumber++;
+                                    ribbonRows.push(
+                                      <TableRow key={`${circuit.id}-feed-segment-${currentDistFiber}`} className={rowBgColor} data-testid={`row-feed-ribbon-${circuit.id}-${currentDistFiber}`}>
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
+                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>
+                                          R{currentFeedRibbon}:{feedStrandStart}{feedStrandStart !== feedStrandEnd ? `-${feedStrandEnd}` : ''}
+                                        </TableCell>
+                                        <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitStart}-{circuitEnd}</TableCell>
+                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>
+                                          R{currentDistRibbon}:{distStrandStart}{distStrandStart !== distStrandEnd ? `-${distStrandEnd}` : ''}
+                                        </TableCell>
+                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
+                                      </TableRow>
+                                    );
+                                    
+                                    currentDistFiber += segmentFiberCount;
+                                    currentFeedFiber += segmentFiberCount;
+                                  }
+                                  
+                                  return ribbonRows;
+                                } else {
+                                  // Fiber view: show one row per fiber
+                                  const fiberRows = [];
+                                  
+                                  if (!circuit.fiberStart || !circuit.fiberEnd || isNaN(circuit.fiberStart) || isNaN(circuit.fiberEnd)) {
+                                    rowNumber++;
+                                    return [(
+                                      <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-feed-spliced-circuit-${circuit.id}`}>
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                          Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid fiber positions.
+                                        </TableCell>
+                                      </TableRow>
+                                    )];
+                                  }
+                                  
+                                  for (let i = 0; i < circuit.fiberEnd - circuit.fiberStart + 1; i++) {
+                                    const distFiber = circuit.fiberStart + i;
+                                    const feedFiber = (circuit.feedFiberStart || circuit.fiberStart) + i;
+                                    
+                                    const distRibbon = getRibbonNumber(distFiber);
+                                    const distStrand = getFiberPositionInRibbon(distFiber);
+                                    const feedRibbon = getRibbonNumber(feedFiber);
+                                    const feedStrand = getFiberPositionInRibbon(feedFiber);
+                                    
+                                    const circuitNumber = rangeStart + i;
+                                    const feedColor = getColorForStrand(feedStrand);
+                                    const distColor = getColorForStrand(distStrand);
+                                    const feedRibbonColor = getColorForRibbon(feedRibbon);
+                                    const distRibbonColor = getColorForRibbon(distRibbon);
+                                    
+                                    rowNumber++;
+                                    fiberRows.push(
+                                      <TableRow key={`${circuit.id}-feed-fiber-${i}`} className={rowBgColor} data-testid={`row-feed-fiber-${circuit.id}-${i}`}>
+                                        <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
+                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{feedCable.name}-{feedCable.fiberCount}</TableCell>
+                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${feedRibbonColor.colorClass}`}>R{feedRibbon}</TableCell>
+                                        <TableCell className="text-center py-1 px-2">
+                                          <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${feedColor.bg} ${feedColor.text} font-mono font-semibold text-xs`}>
+                                            {feedStrand}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className="text-center font-mono font-semibold py-1 px-2 whitespace-nowrap">{circuitPrefix},{circuitNumber}</TableCell>
+                                        <TableCell className="text-center py-1 px-2">
+                                          <div className={`inline-block px-1.5 py-0.5 rounded border border-black ${distColor.bg} ${distColor.text} font-mono font-semibold text-xs`}>
+                                            {distStrand}
+                                          </div>
+                                        </TableCell>
+                                        <TableCell className={`text-center font-mono font-semibold py-1 px-2 whitespace-nowrap ${distRibbonColor.colorClass}`}>R{distRibbon}</TableCell>
+                                        <TableCell className="text-center font-mono py-1 px-2 whitespace-nowrap">{distributionCable?.name}-{distributionCable?.fiberCount}</TableCell>
+                                      </TableRow>
+                                    );
+                                  }
+                                  
+                                  return fiberRows;
                                 }
-                                
-                                return fiberRows;
-                              }
-                            })}
+                              });
+                            })()}
                           </TableBody>
                         </Table>
                       </div>
