@@ -26,6 +26,8 @@ import { CableForm } from "@/components/CableForm";
 import { CableVisualization } from "@/components/CableVisualization";
 import { CircuitManagement } from "@/components/CircuitManagement";
 import { Plus, Cable as CableIcon, Workflow, Save, Upload, RotateCcw, Edit2, Check, X, Trash2, Layers } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Accordion,
   AccordionContent,
@@ -57,6 +59,7 @@ export default function Home() {
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [saveFileName, setSaveFileName] = useState("");
+  const [useRibbonView, setUseRibbonView] = useState(true);
 
   const { data: cables = [], isLoading: cablesLoading } = useQuery<Cable[]>({
     queryKey: ["/api/cables"],
@@ -625,14 +628,8 @@ export default function Home() {
                 return getRangeStart(a.circuitId) - getRangeStart(b.circuitId);
               });
               
-              // Check if all circuits in this prefix use full ribbons
-              const allFullRibbons = prefixCircuits.every(circuit => {
-                const fiberCount = circuit.fiberEnd - circuit.fiberStart + 1;
-                return fiberCount % 12 === 0;
-              });
-              
-              // Calculate total splice rows for this prefix
-              const totalSpliceRows = allFullRibbons 
+              // Calculate total splice rows for this prefix based on current view mode
+              const totalSpliceRows = useRibbonView 
                 ? prefixCircuits.reduce((sum, circuit) => {
                     const fiberCount = circuit.fiberEnd - circuit.fiberStart + 1;
                     return sum + (fiberCount / 12);
@@ -644,8 +641,18 @@ export default function Home() {
               return (
                 <TabsContent key={`prefix-${prefix}`} value={`prefix-splice-${prefix}`}>
                   <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between gap-4">
                       <CardTitle>{prefix} Splice</CardTitle>
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`view-toggle-prefix-${prefix}`} className="text-sm text-muted-foreground">Strands</Label>
+                        <Switch
+                          id={`view-toggle-prefix-${prefix}`}
+                          checked={useRibbonView}
+                          onCheckedChange={setUseRibbonView}
+                          data-testid={`switch-view-mode-prefix-${prefix}`}
+                        />
+                        <Label htmlFor={`view-toggle-prefix-${prefix}`} className="text-sm text-muted-foreground">Ribbons</Label>
+                      </div>
                     </CardHeader>
                     <CardContent>
                       {prefixCircuits.length === 0 ? (
@@ -658,16 +665,16 @@ export default function Home() {
                             <TableHeader>
                               <TableRow className="bg-muted/50">
                                 <TableHead rowSpan={2} className="text-center font-semibold py-1 px-2 whitespace-nowrap">#</TableHead>
-                                <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50 py-1 px-2">Feed</TableHead>
+                                <TableHead colSpan={useRibbonView ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50 py-1 px-2">Feed</TableHead>
                                 <TableHead className="text-center font-semibold py-1 px-2 whitespace-nowrap">Splices : {totalSpliceRows}</TableHead>
-                                <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50 py-1 px-2">Distribution</TableHead>
+                                <TableHead colSpan={useRibbonView ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50 py-1 px-2">Distribution</TableHead>
                               </TableRow>
                               <TableRow>
                                 <TableHead className="text-center py-1 px-2 whitespace-nowrap">Cable</TableHead>
                                 <TableHead className="text-center py-1 px-2 whitespace-nowrap">Ribbon</TableHead>
-                                {!allFullRibbons && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
+                                {!useRibbonView && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
                                 <TableHead className="text-center py-1 px-2 whitespace-nowrap">Circuit</TableHead>
-                                {!allFullRibbons && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
+                                {!useRibbonView && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
                                 <TableHead className="text-center py-1 px-2 whitespace-nowrap">Ribbon</TableHead>
                                 <TableHead className="text-center py-1 px-2 whitespace-nowrap">Cable</TableHead>
                               </TableRow>
@@ -688,7 +695,7 @@ export default function Home() {
                                     return [(
                                       <TableRow key={circuit.id} className={rowBgColor}>
                                         <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
-                                        <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={useRibbonView ? 4 : 6} className="text-center text-muted-foreground">
                                           Circuit {circuit.circuitId} - No feed cable selected.
                                         </TableCell>
                                       </TableRow>
@@ -705,7 +712,7 @@ export default function Home() {
                                     return [(
                                       <TableRow key={circuit.id} className={rowBgColor}>
                                         <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
-                                        <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={useRibbonView ? 4 : 6} className="text-center text-muted-foreground">
                                           Circuit {circuit.circuitId} - Invalid format.
                                         </TableCell>
                                       </TableRow>
@@ -720,14 +727,14 @@ export default function Home() {
                                     return [(
                                       <TableRow key={circuit.id} className={rowBgColor}>
                                         <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
-                                        <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                        <TableCell colSpan={useRibbonView ? 4 : 6} className="text-center text-muted-foreground">
                                           Circuit {circuit.circuitId} - Invalid range.
                                         </TableCell>
                                       </TableRow>
                                     )];
                                   }
                                   
-                                  if (allFullRibbons) {
+                                  if (useRibbonView) {
                                     const ribbonRows = [];
                                     const distFiberStart = circuit.fiberStart;
                                     const distFiberEnd = circuit.fiberEnd;
@@ -867,13 +874,8 @@ export default function Home() {
             const cableSplicedCircuits = splicedCircuits.filter(c => c.cableId === distCable.id);
             
             // Check if all circuits use full ribbons (each circuit's fiber count is a multiple of 12)
-            const allFullRibbons = cableSplicedCircuits.length > 0 && cableSplicedCircuits.every(circuit => {
-              const fiberCount = circuit.fiberEnd - circuit.fiberStart + 1;
-              return fiberCount % 12 === 0;
-            });
-            
-            // Calculate total number of splice rows
-            const totalSpliceRows = allFullRibbons 
+            // Calculate total number of splice rows based on current view mode
+            const totalSpliceRows = useRibbonView 
               ? cableSplicedCircuits.reduce((sum, circuit) => {
                   const fiberCount = circuit.fiberEnd - circuit.fiberStart + 1;
                   return sum + (fiberCount / 12);
@@ -885,8 +887,18 @@ export default function Home() {
             return (
               <TabsContent key={distCable.id} value={`splice-${distCable.id}`}>
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between gap-4">
                     <CardTitle>Splice Mapping - {distCable.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`view-toggle-${distCable.id}`} className="text-sm text-muted-foreground">Strands</Label>
+                      <Switch
+                        id={`view-toggle-${distCable.id}`}
+                        checked={useRibbonView}
+                        onCheckedChange={setUseRibbonView}
+                        data-testid={`switch-view-mode-${distCable.id}`}
+                      />
+                      <Label htmlFor={`view-toggle-${distCable.id}`} className="text-sm text-muted-foreground">Ribbons</Label>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {circuitsLoading ? (
@@ -901,16 +913,16 @@ export default function Home() {
                           <TableHeader>
                             <TableRow className="bg-muted/50">
                               <TableHead rowSpan={2} className="text-center font-semibold py-1 px-2 whitespace-nowrap">#</TableHead>
-                              <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50 py-1 px-2">Feed</TableHead>
+                              <TableHead colSpan={useRibbonView ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50 py-1 px-2">Feed</TableHead>
                               <TableHead className="text-center font-semibold py-1 px-2 whitespace-nowrap">Splices : {totalSpliceRows}</TableHead>
-                              <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50 py-1 px-2">Distribution</TableHead>
+                              <TableHead colSpan={useRibbonView ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50 py-1 px-2">Distribution</TableHead>
                             </TableRow>
                             <TableRow>
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Cable</TableHead>
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Ribbon</TableHead>
-                              {!allFullRibbons && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
+                              {!useRibbonView && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Circuit</TableHead>
-                              {!allFullRibbons && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
+                              {!useRibbonView && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Ribbon</TableHead>
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Cable</TableHead>
                             </TableRow>
@@ -932,7 +944,7 @@ export default function Home() {
                                   return [(
                                     <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
                                       <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
-                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                      <TableCell colSpan={useRibbonView ? 4 : 6} className="text-center text-muted-foreground">
                                         Circuit {circuit.circuitId} in {distributionCable?.name} - No feed cable selected. Please re-check the circuit.
                                       </TableCell>
                                     </TableRow>
@@ -973,7 +985,7 @@ export default function Home() {
                                   return [(
                                     <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
                                       <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
-                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                      <TableCell colSpan={useRibbonView ? 4 : 6} className="text-center text-muted-foreground">
                                         Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit ID format.
                                       </TableCell>
                                     </TableRow>
@@ -989,14 +1001,14 @@ export default function Home() {
                                   return [(
                                     <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-spliced-circuit-${circuit.id}`}>
                                       <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
-                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                      <TableCell colSpan={useRibbonView ? 4 : 6} className="text-center text-muted-foreground">
                                         Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit number range.
                                       </TableCell>
                                     </TableRow>
                                   )];
                                 }
                                 
-                                if (allFullRibbons) {
+                                if (useRibbonView) {
                                   // Full ribbon view
                                   const ribbonRows = [];
                                   
@@ -1146,13 +1158,8 @@ export default function Home() {
             });
             
             // Check if all circuits use full ribbons (multiples of 12)
-            const allFullRibbons = feedSplicedCircuits.length > 0 && feedSplicedCircuits.every(c => {
-              const fiberCount = (c.fiberEnd || 0) - (c.fiberStart || 0) + 1;
-              return fiberCount > 0 && fiberCount % 12 === 0;
-            });
-            
-            // Calculate total splice rows
-            const totalSpliceRows = allFullRibbons 
+            // Calculate total splice rows based on current view mode
+            const totalSpliceRows = useRibbonView 
               ? feedSplicedCircuits.reduce((sum, circuit) => {
                   const fiberCount = (circuit.fiberEnd || 0) - (circuit.fiberStart || 0) + 1;
                   return sum + (fiberCount / 12);
@@ -1164,8 +1171,18 @@ export default function Home() {
             return (
               <TabsContent key={`feed-${feedCable.id}`} value={`feed-splice-${feedCable.id}`}>
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between gap-4">
                     <CardTitle>Splice Mapping - {feedCable.name}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <Label htmlFor={`view-toggle-feed-${feedCable.id}`} className="text-sm text-muted-foreground">Strands</Label>
+                      <Switch
+                        id={`view-toggle-feed-${feedCable.id}`}
+                        checked={useRibbonView}
+                        onCheckedChange={setUseRibbonView}
+                        data-testid={`switch-view-mode-feed-${feedCable.id}`}
+                      />
+                      <Label htmlFor={`view-toggle-feed-${feedCable.id}`} className="text-sm text-muted-foreground">Ribbons</Label>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {circuitsLoading ? (
@@ -1180,16 +1197,16 @@ export default function Home() {
                           <TableHeader>
                             <TableRow className="bg-muted/50">
                               <TableHead rowSpan={2} className="text-center font-semibold py-1 px-2 whitespace-nowrap">#</TableHead>
-                              <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50 py-1 px-2">Feed</TableHead>
+                              <TableHead colSpan={useRibbonView ? 2 : 3} className="text-center font-semibold bg-green-100 dark:bg-green-950/50 py-1 px-2">Feed</TableHead>
                               <TableHead className="text-center font-semibold py-1 px-2 whitespace-nowrap">Splices : {totalSpliceRows}</TableHead>
-                              <TableHead colSpan={allFullRibbons ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50 py-1 px-2">Distribution</TableHead>
+                              <TableHead colSpan={useRibbonView ? 2 : 3} className="text-center font-semibold bg-blue-100 dark:bg-blue-950/50 py-1 px-2">Distribution</TableHead>
                             </TableRow>
                             <TableRow>
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Cable</TableHead>
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Ribbon</TableHead>
-                              {!allFullRibbons && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
+                              {!useRibbonView && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Circuit</TableHead>
-                              {!allFullRibbons && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
+                              {!useRibbonView && <TableHead className="text-center py-1 px-2 whitespace-nowrap">Strand</TableHead>}
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Ribbon</TableHead>
                               <TableHead className="text-center py-1 px-2 whitespace-nowrap">Cable</TableHead>
                             </TableRow>
@@ -1239,7 +1256,7 @@ export default function Home() {
                                   return [(
                                     <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-feed-spliced-circuit-${circuit.id}`}>
                                       <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
-                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                      <TableCell colSpan={useRibbonView ? 4 : 6} className="text-center text-muted-foreground">
                                         Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit ID format.
                                       </TableCell>
                                     </TableRow>
@@ -1255,14 +1272,14 @@ export default function Home() {
                                   return [(
                                     <TableRow key={circuit.id} className={rowBgColor} data-testid={`row-feed-spliced-circuit-${circuit.id}`}>
                                       <TableCell className="text-center font-mono py-1 px-2">{rowNumber}</TableCell>
-                                      <TableCell colSpan={allFullRibbons ? 4 : 6} className="text-center text-muted-foreground">
+                                      <TableCell colSpan={useRibbonView ? 4 : 6} className="text-center text-muted-foreground">
                                         Circuit {circuit.circuitId} in {distributionCable?.name} - Invalid circuit number range.
                                       </TableCell>
                                     </TableRow>
                                   )];
                                 }
                                 
-                                if (allFullRibbons) {
+                                if (useRibbonView) {
                                   // Full ribbon view
                                   const ribbonRows = [];
                                   

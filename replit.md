@@ -60,9 +60,11 @@ Preferred communication style: Simple, everyday language.
 - **Feed Fiber Conflict Prevention:** System prevents two distribution circuits from splicing to the same feed cable with overlapping fiber positions. For example, if d2's "pon,1-8" is spliced to f1's fibers 1-8, d3's "pon,8-12" cannot splice to f1 because fiber 8 would be used by both.
 - Error handling with toast messages if no matching Feed circuit is found or if feed fibers are already in use.
 - Splice tab displays fiber mappings with color-coded, industry-standard fiber optic colors (12 colors).
-- **Adaptive Splice Display:** Automatically switches between two display modes:
-  - **Full Ribbon View:** When all circuits use complete ribbons (fiber counts are multiples of 12), displays one row per ribbon with color-coded ribbon numbers and circuit ranges (e.g., "pon,49-60"). Strand columns are hidden for cleaner visualization.
-  - **Fiber View:** When any circuit uses partial ribbons, displays individual fiber mappings (one row per fiber) with color-coded strand numbers.
+- **Manual View Toggle:** Toggle switch in splice tab headers allows manual switching between two display modes:
+  - **Ribbons View (default, toggle ON):** Compact display showing one row per ribbon with R#:start-end notation (e.g., "R1:1-12"). Strand columns are hidden for cleaner visualization.
+  - **Strands View (toggle OFF):** Detailed display showing individual fiber mappings (one row per fiber) with color-coded strand badges (1-12).
+  - Toggle state is shared across all splice tabs (prefix, distribution, and feed cable tabs).
+  - Row numbering (#) column appears in both views for easy reference.
 **Pass/Fail Status Badges:** Cables and circuits display green "Pass" badges when total assigned fibers are within cable capacity, or red "Fail" badges when exceeded.
 **Delete Cable:** Immediate deletion without confirmation dialog.
 **File-Based Save/Load System:** 
