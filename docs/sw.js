@@ -87,7 +87,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // API requests - Network First strategy (with cache fallback)
-  if (url.pathname.startsWith('/FiberMapConnect/api/')) {
+  if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
