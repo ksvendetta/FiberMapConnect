@@ -11,7 +11,7 @@ import * as ort from "onnxruntime-web";
 // Single-threaded avoids the crossOriginIsolated requirement on GitHub Pages
 ort.env.wasm.numThreads = 1;
 
-// Resolve base path so WASM files are found on GitHub Pages (/FiberMapConnect/)
+// Resolve base path so WASM files are found on GitHub Pages (/splice/)
 const base = import.meta.env.BASE_URL ?? "/";
 ort.env.wasm.wasmPaths = base;
 

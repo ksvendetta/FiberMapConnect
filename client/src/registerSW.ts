@@ -3,7 +3,7 @@ export function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       // Use base path for GitHub Pages deployment
-      const swPath = import.meta.env.PROD ? '/FiberMapConnect/sw.js' : '/sw.js';
+      const swPath = import.meta.env.PROD ? '/splice/sw.js' : '/sw.js';
       navigator.serviceWorker
         .register(swPath)
         .then((registration) => {

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Push Fiber Splice Manager to GitHub
 
-echo "🚀 Pushing to GitHub repository: FiberMapConnect"
+echo "🚀 Pushing to GitHub repository: splice"
 echo ""
 
 # Check if git is initialized
@@ -33,7 +33,7 @@ Features:
 # Add remote if not exists
 if ! git remote | grep -q origin; then
   echo "🔗 Adding GitHub remote..."
-  git remote add origin https://github.com/ksvendetta/FiberMapConnect.git
+  git remote add origin https://github.com/ksvendetta/splice.git
 fi
 
 # Set main branch
@@ -45,4 +45,4 @@ git push -u origin main --force
 
 echo ""
 echo "✅ Successfully pushed to GitHub!"
-echo "🌐 View your repository: https://github.com/ksvendetta/FiberMapConnect"
+echo "🌐 View your repository: https://github.com/ksvendetta/splice"

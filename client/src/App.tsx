@@ -9,7 +9,7 @@ import CopperHome from "@/pages/CopperHome";
 import NotFound from "@/pages/not-found";
 
 // Base path for GitHub Pages deployment
-const basePath = import.meta.env.PROD ? "/fibersplice" : "";
+const basePath = import.meta.env.PROD ? "/splice" : "";
 
 function AppRouter({ mode, setMode }: { mode: "fiber" | "copper"; setMode: (mode: "fiber" | "copper") => void }) {
   return (

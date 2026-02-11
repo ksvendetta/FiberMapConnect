@@ -7,7 +7,7 @@
 ## Steps to Build
 
 ### 1. Download the Project
-Download all project files to your Windows computer and extract to a folder (e.g., `C:\FiberMapConnect`).
+Download all project files to your Windows computer and extract to a folder (e.g., `C:\fibersplice`).
 
 ### 2. Install Dependencies
 Open Command Prompt or PowerShell in the project folder and run:
