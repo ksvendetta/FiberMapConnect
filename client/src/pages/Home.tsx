@@ -25,9 +25,10 @@ import { CableCard } from "@/components/CableCard";
 import { CableForm } from "@/components/CableForm";
 import { CableVisualization } from "@/components/CableVisualization";
 import { CircuitManagement } from "@/components/CircuitManagement";
-import { Plus, Cable as CableIcon, Workflow, Save, Upload, RotateCcw, Edit2, Check, X, Trash2, Layers } from "lucide-react";
+import { Plus, Cable as CableIcon, Workflow, Save, Upload, RotateCcw, Edit2, Check, X, Trash2, Layers, Home as HomeIcon, Phone, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Switch as ToggleSwitch } from "@/components/ui/switch";
 import {
   Accordion,
   AccordionContent,
@@ -47,7 +48,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export default function Home() {
+export default function Home({ mode, setMode }: { mode: "fiber" | "copper"; setMode: (mode: "fiber" | "copper") => void }) {
   const { toast } = useToast();
   const [selectedCableId, setSelectedCableId] = useState<string | null>(null);
   const [cableDialogOpen, setCableDialogOpen] = useState(false);
@@ -61,12 +62,17 @@ export default function Home() {
   const [saveFileName, setSaveFileName] = useState("");
   const [useRibbonView, setUseRibbonView] = useState(true);
 
+  // Use mode-specific API endpoints to keep fiber and copper data separate
+  const apiMode = mode === "fiber" ? "fiber" : "copper";
+  const cablesEndpoint = `/api/${apiMode}/cables`;
+  const circuitsEndpoint = `/api/${apiMode}/circuits`;
+
   const { data: cables = [], isLoading: cablesLoading } = useQuery<Cable[]>({
-    queryKey: ["/api/cables"],
+    queryKey: [cablesEndpoint],
   });
 
   const { data: allCircuits = [], isLoading: circuitsLoading } = useQuery<Circuit[]>({
-    queryKey: ["/api/circuits"],
+    queryKey: [circuitsEndpoint],
   });
 
   // Sort cables: Feed first, then Distribution (maintaining insertion order within each type)
@@ -78,11 +84,11 @@ export default function Home() {
 
   const createCableMutation = useMutation({
     mutationFn: async (data: InsertCable) => {
-      return await apiRequest("POST", "/api/cables", data);
+      return await apiRequest("POST", cablesEndpoint, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/circuits"] });
+      queryClient.invalidateQueries({ queryKey: [cablesEndpoint] });
+      queryClient.invalidateQueries({ queryKey: [circuitsEndpoint] });
       setCableDialogOpen(false);
       toast({ title: "Cable created successfully" });
     },
@@ -94,11 +100,11 @@ export default function Home() {
 
   const updateCableMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: InsertCable }) => {
-      return await apiRequest("PUT", `/api/cables/${id}`, data);
+      return await apiRequest("PUT", `${cablesEndpoint}/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/circuits"] });
+      queryClient.invalidateQueries({ queryKey: [cablesEndpoint] });
+      queryClient.invalidateQueries({ queryKey: [circuitsEndpoint] });
       setCableDialogOpen(false);
       setEditingCable(null);
       toast({ title: "Cable updated successfully" });
@@ -111,18 +117,18 @@ export default function Home() {
 
   const deleteCableMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/cables/${id}`, undefined);
+      return await apiRequest("DELETE", `${cablesEndpoint}/${id}`, undefined);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cables"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/circuits"] });
+      queryClient.invalidateQueries({ queryKey: [cablesEndpoint] });
+      queryClient.invalidateQueries({ queryKey: [circuitsEndpoint] });
       toast({ title: "Cable deleted successfully" });
     },
     onError: (error: any) => {
       // If cable doesn't exist (404), still remove from UI
       if (error?.message?.includes("not found") || error?.message?.includes("404")) {
-        queryClient.invalidateQueries({ queryKey: ["/api/cables"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/circuits"] });
+        queryClient.invalidateQueries({ queryKey: [cablesEndpoint] });
+        queryClient.invalidateQueries({ queryKey: [circuitsEndpoint] });
         toast({ title: "Cable removed from display" });
       } else {
         toast({ title: "Failed to delete cable", variant: "destructive" });
@@ -132,12 +138,12 @@ export default function Home() {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("DELETE", "/api/reset", undefined);
+      return await apiRequest("DELETE", `/api/${apiMode}/reset`, undefined);
     },
     onSuccess: async () => {
       // Force refetch to clear the UI
-      await queryClient.refetchQueries({ queryKey: ["/api/cables"] });
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits"] });
+      await queryClient.refetchQueries({ queryKey: [cablesEndpoint] });
+      await queryClient.refetchQueries({ queryKey: [circuitsEndpoint] });
       setSelectedCableId(null);
       setResetDialogOpen(false);
       toast({ title: "All data has been reset" });
@@ -154,10 +160,11 @@ export default function Home() {
 
   const handleSaveConfirm = async () => {
     const projectData = {
+      mode: mode, // Store the current mode
       cables,
       circuits: allCircuits,
     };
-    
+
     const dataStr = JSON.stringify(projectData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     
@@ -192,36 +199,43 @@ export default function Home() {
     input.onchange = async (e: any) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      
+
       try {
         const text = await file.text();
         const projectData = JSON.parse(text);
-        
+
         if (!projectData.cables || !projectData.circuits) {
           toast({ title: "Invalid project file format", variant: "destructive" });
           return;
         }
-        
-        // Clear ALL existing data first
-        await apiRequest("DELETE", "/api/reset", undefined);
-        
-        // Use direct storage to restore exact state (preserving IDs, positions, etc.)
-        const { storage } = await import("@/lib/storage");
-        const { db } = await import("@/lib/db");
-        
-        // Restore cables and circuits with their original IDs and properties
-        await db.cables.bulkAdd(projectData.cables);
-        await db.circuits.bulkAdd(projectData.circuits);
-        
-        // Invalidate queries to refresh the UI
-        queryClient.invalidateQueries({ queryKey: ["/api/cables"] });
-        queryClient.invalidateQueries({ queryKey: ["/api/circuits"] });
-        
-        toast({ 
+
+        // Detect the mode from the saved file (default to 'fiber' for backwards compatibility)
+        const savedMode = projectData.mode || 'fiber';
+
+        // Switch to the correct mode
+        setMode(savedMode);
+
+        // Use mode-specific database and API endpoints
+        const { getDb } = await import("@/lib/db");
+        const targetDb = getDb(savedMode);
+
+        // Clear the mode-specific database first
+        await apiRequest("DELETE", `/api/${savedMode}/reset`, undefined);
+
+        // Restore cables and circuits to the correct mode's database
+        await targetDb.cables.bulkAdd(projectData.cables);
+        await targetDb.circuits.bulkAdd(projectData.circuits);
+
+        // Invalidate mode-specific queries to refresh the UI
+        queryClient.invalidateQueries({ queryKey: [`/api/${savedMode}/cables`] });
+        queryClient.invalidateQueries({ queryKey: [`/api/${savedMode}/circuits`] });
+
+        toast({
           title: "Project loaded successfully",
-          description: `${projectData.cables.length} cable(s) and ${projectData.circuits.length} circuit(s) restored`
+          description: `${projectData.cables.length} cable(s) and ${projectData.circuits.length} circuit(s) restored to ${savedMode} mode`
         });
       } catch (error) {
+        console.error("Load error:", error);
         toast({ title: "Failed to load project file", variant: "destructive" });
       }
     };
@@ -264,6 +278,25 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <h1 className="text-xl font-semibold">Fiber Splice Manager</h1>
             </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <Phone className={mode === "copper" ? "h-4 w-4 text-primary" : "h-4 w-4 text-muted-foreground"} />
+                <Label htmlFor="mode-toggle" className="cursor-pointer text-sm font-medium">
+                  Copper
+                </Label>
+              </div>
+              <ToggleSwitch
+                id="mode-toggle"
+                checked={mode === "fiber"}
+                onCheckedChange={(checked) => setMode(checked ? "fiber" : "copper")}
+              />
+              <div className="flex items-center gap-2">
+                <Label htmlFor="mode-toggle" className="cursor-pointer text-sm font-medium">
+                  Fiber
+                </Label>
+                <Sparkles className={mode === "fiber" ? "h-4 w-4 text-primary" : "h-4 w-4 text-muted-foreground"} />
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -299,51 +332,92 @@ export default function Home() {
 
       <main className="container mx-auto px-6 py-6">
         <Tabs defaultValue="input" className="w-full">
-          <TabsList className="mb-6" data-testid="tabs-main">
-            <TabsTrigger value="input" data-testid="tab-input-data">
-              <CableIcon className="h-4 w-4 mr-2" />
-              Home
-            </TabsTrigger>
-            {/* Dynamic tabs for each unique circuit ID prefix */}
-            {(() => {
-              const uniquePrefixes = new Set<string>();
-              splicedCircuits.forEach(circuit => {
-                const parts = circuit.circuitId.split(',');
-                const prefix = parts[0]?.trim();
-                if (prefix) uniquePrefixes.add(prefix);
-              });
-              return Array.from(uniquePrefixes).sort().map(prefix => (
-                <TabsTrigger 
-                  key={`prefix-${prefix}`} 
-                  value={`prefix-splice-${prefix}`}
-                  data-testid={`tab-prefix-splice-${prefix}`}
-                >
-                  <Layers className="h-4 w-4 mr-2" />
-                  {prefix} Splice
+          {/* Tab Navigation with Section Labels */}
+          <div className="mb-6">
+            <TabsList data-testid="tabs-main" className="w-full justify-start bg-transparent p-0">
+              {/* Home Section - No Header */}
+              <div className="inline-flex flex-col">
+                <div className="h-6 mb-2"></div>
+                <TabsTrigger value="input" data-testid="tab-input-data">
+                  <HomeIcon className="h-4 w-4 mr-2" />
+                  Home
                 </TabsTrigger>
-              ));
-            })()}
-            {distributionCables.map((distCable) => (
-              <TabsTrigger 
-                key={distCable.id} 
-                value={`splice-${distCable.id}`} 
-                data-testid={`tab-splice-${distCable.id}`}
-              >
-                <Workflow className="h-4 w-4 mr-2" />
-                {distCable.name}
-              </TabsTrigger>
-            ))}
-            {feedCables.map((feedCable) => (
-              <TabsTrigger 
-                key={`feed-${feedCable.id}`} 
-                value={`feed-splice-${feedCable.id}`} 
-                data-testid={`tab-feed-splice-${feedCable.id}`}
-              >
-                <Workflow className="h-4 w-4 mr-2" />
-                {feedCable.name}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+              </div>
+
+              {/* ID Splice Section with Header */}
+              {(() => {
+                const uniquePrefixes = new Set<string>();
+                splicedCircuits.forEach(circuit => {
+                  const parts = circuit.circuitId.split(',');
+                  const prefix = parts[0]?.trim();
+                  if (prefix) uniquePrefixes.add(prefix);
+                });
+                const prefixArray = Array.from(uniquePrefixes).sort();
+                if (prefixArray.length === 0) return null;
+
+                return (
+                  <>
+                    <div className="h-8 w-0.5 bg-border mx-3 self-end" />
+                    <div className="inline-flex flex-col">
+                      <div className="text-center border-x-2 border-border bg-muted/30 px-6 py-1 rounded-t mb-2">
+                        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                          Splice by ID
+                        </h3>
+                      </div>
+                      <div className="inline-flex">
+                        {prefixArray.map(prefix => (
+                          <TabsTrigger
+                            key={`prefix-${prefix}`}
+                            value={`prefix-splice-${prefix}`}
+                            data-testid={`tab-prefix-splice-${prefix}`}
+                          >
+                            <Layers className="h-4 w-4 mr-2" />
+                            {prefix}
+                          </TabsTrigger>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+
+              {/* Cable Splice Section with Header */}
+              {(distributionCables.length > 0 || feedCables.length > 0) && (
+                <>
+                  <div className="h-8 w-0.5 bg-border mx-3 self-end" />
+                  <div className="inline-flex flex-col">
+                    <div className="text-center border-x-2 border-border bg-muted/30 px-6 py-1 rounded-t mb-2">
+                      <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+                        Splice by Cable
+                      </h3>
+                    </div>
+                    <div className="inline-flex">
+                      {distributionCables.map((distCable) => (
+                        <TabsTrigger
+                          key={distCable.id}
+                          value={`splice-${distCable.id}`}
+                          data-testid={`tab-splice-${distCable.id}`}
+                        >
+                          <CableIcon className="h-4 w-4 mr-2" />
+                          {distCable.name}
+                        </TabsTrigger>
+                      ))}
+                      {feedCables.map((feedCable) => (
+                        <TabsTrigger
+                          key={`feed-${feedCable.id}`}
+                          value={`feed-splice-${feedCable.id}`}
+                          data-testid={`tab-feed-splice-${feedCable.id}`}
+                        >
+                          <CableIcon className="h-4 w-4 mr-2" />
+                          {feedCable.name}
+                        </TabsTrigger>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </TabsList>
+          </div>
 
           <TabsContent value="input" className="space-y-6">
             <div className="space-y-6">
@@ -563,7 +637,7 @@ export default function Home() {
                           </div>
                         </div>
 
-                        <CircuitManagement cable={selectedCable} />
+                        <CircuitManagement cable={selectedCable} mode={mode} />
                       </div>
                     ) : (
                       <div className="text-center py-12 text-muted-foreground">
@@ -627,17 +701,54 @@ export default function Home() {
               const prefixCircuits = [...groupedByPrefix[prefix]].sort((a, b) => {
                 return getRangeStart(a.circuitId) - getRangeStart(b.circuitId);
               });
-              
-              // Calculate total splice rows for this prefix based on current view mode
-              const totalSpliceRows = useRibbonView 
-                ? prefixCircuits.reduce((sum, circuit) => {
-                    const fiberCount = circuit.fiberEnd - circuit.fiberStart + 1;
-                    return sum + (fiberCount / 12);
-                  }, 0)
-                : prefixCircuits.reduce((sum, circuit) => {
-                    return sum + (circuit.fiberEnd - circuit.fiberStart + 1);
-                  }, 0);
-              
+
+              // Calculate total rows by actually counting them
+              let totalSpliceRows = 0;
+              console.log(`[SPLICE COUNT] Prefix: ${prefix}, Circuits:`, prefixCircuits.length);
+              prefixCircuits.forEach((circuit, idx) => {
+                const feedFiberStart = circuit.feedFiberStart || circuit.fiberStart;
+                const feedFiberEnd = circuit.feedFiberEnd || circuit.fiberEnd;
+                console.log(`[SPLICE COUNT] Circuit ${idx} (${circuit.circuitId}): feedFiberStart=${feedFiberStart}, feedFiberEnd=${feedFiberEnd}`);
+
+                if (!feedFiberStart || !feedFiberEnd) {
+                  totalSpliceRows++;
+                  return;
+                }
+
+                if (useRibbonView) {
+                  const distFiberStart = circuit.fiberStart;
+                  const distFiberEnd = circuit.fiberEnd;
+
+                  let currentDistFiber = distFiberStart;
+                  let currentFeedFiber = feedFiberStart;
+                  let rowsForThisCircuit = 0;
+
+                  while (currentDistFiber <= distFiberEnd) {
+                    const currentDistRibbon = getRibbonNumber(currentDistFiber);
+                    const currentFeedRibbon = getRibbonNumber(currentFeedFiber);
+
+                    const distRibbonEnd = currentDistRibbon * ribbonSize;
+                    const distSegmentEnd = Math.min(distRibbonEnd, distFiberEnd);
+                    const feedRibbonEnd = currentFeedRibbon * ribbonSize;
+                    const feedSegmentEnd = Math.min(feedRibbonEnd, feedFiberEnd);
+
+                    const distFiberCount = distSegmentEnd - currentDistFiber + 1;
+                    const feedFiberCount = feedSegmentEnd - currentFeedFiber + 1;
+                    const segmentFiberCount = Math.min(distFiberCount, feedFiberCount);
+
+                    rowsForThisCircuit++;
+                    totalSpliceRows++;
+
+                    currentDistFiber += segmentFiberCount;
+                    currentFeedFiber += segmentFiberCount;
+                  }
+                  console.log(`[SPLICE COUNT] Circuit ${idx} generated ${rowsForThisCircuit} rows`);
+                } else {
+                  totalSpliceRows += (feedFiberEnd - feedFiberStart + 1);
+                }
+              });
+              console.log(`[SPLICE COUNT] Total rows for prefix ${prefix}: ${totalSpliceRows}`);
+
               return (
                 <TabsContent key={`prefix-${prefix}`} value={`prefix-splice-${prefix}`}>
                   <Card>
@@ -878,16 +989,45 @@ export default function Home() {
           {distributionCables.map((distCable) => {
             const cableSplicedCircuits = splicedCircuits.filter(c => c.cableId === distCable.id);
             
-            // Check if all circuits use full ribbons (each circuit's fiber count is a multiple of 12)
-            // Calculate total number of splice rows based on current view mode
-            const totalSpliceRows = useRibbonView 
-              ? cableSplicedCircuits.reduce((sum, circuit) => {
-                  const fiberCount = circuit.fiberEnd - circuit.fiberStart + 1;
-                  return sum + (fiberCount / 12);
-                }, 0)
-              : cableSplicedCircuits.reduce((sum, circuit) => {
-                  return sum + (circuit.fiberEnd - circuit.fiberStart + 1);
-                }, 0);
+            // Calculate total rows by matching the rendering logic exactly
+            let totalSpliceRows = 0;
+            cableSplicedCircuits.forEach((circuit) => {
+              const distFiberStart = circuit.fiberStart;
+              const distFiberEnd = circuit.fiberEnd;
+              const feedFiberStart = circuit.feedFiberStart || circuit.fiberStart;
+              const feedFiberEnd = circuit.feedFiberEnd || circuit.fiberEnd;
+
+              if (!distFiberStart || !distFiberEnd || !feedFiberStart || !feedFiberEnd) {
+                totalSpliceRows++;
+                return;
+              }
+
+              if (useRibbonView) {
+                let currentDistFiber = distFiberStart;
+                let currentFeedFiber = feedFiberStart;
+
+                while (currentDistFiber <= distFiberEnd) {
+                  const currentDistRibbon = Math.ceil(currentDistFiber / 12);
+                  const currentFeedRibbon = Math.ceil(currentFeedFiber / 12);
+
+                  const distRibbonEnd = currentDistRibbon * 12;
+                  const distSegmentEnd = Math.min(distRibbonEnd, distFiberEnd);
+                  const feedRibbonEnd = currentFeedRibbon * 12;
+                  const feedSegmentEnd = Math.min(feedRibbonEnd, feedFiberEnd);
+
+                  const distFiberCount = distSegmentEnd - currentDistFiber + 1;
+                  const feedFiberCount = feedSegmentEnd - currentFeedFiber + 1;
+                  const segmentFiberCount = Math.min(distFiberCount, feedFiberCount);
+
+                  totalSpliceRows++;
+
+                  currentDistFiber += segmentFiberCount;
+                  currentFeedFiber += segmentFiberCount;
+                }
+              } else {
+                totalSpliceRows += (feedFiberEnd - feedFiberStart + 1);
+              }
+            });
             
             return (
               <TabsContent key={distCable.id} value={`splice-${distCable.id}`}>
@@ -1167,16 +1307,45 @@ export default function Home() {
               return (a.feedFiberStart || 0) - (b.feedFiberStart || 0);
             });
             
-            // Check if all circuits use full ribbons (multiples of 12)
-            // Calculate total splice rows based on current view mode
-            const totalSpliceRows = useRibbonView 
-              ? feedSplicedCircuits.reduce((sum, circuit) => {
-                  const fiberCount = (circuit.fiberEnd || 0) - (circuit.fiberStart || 0) + 1;
-                  return sum + (fiberCount / 12);
-                }, 0)
-              : feedSplicedCircuits.reduce((sum, circuit) => {
-                  return sum + ((circuit.fiberEnd || 0) - (circuit.fiberStart || 0) + 1);
-                }, 0);
+            // Calculate total rows by matching the rendering logic exactly
+            let totalSpliceRows = 0;
+            feedSplicedCircuits.forEach((circuit) => {
+              const distFiberStart = circuit.fiberStart;
+              const distFiberEnd = circuit.fiberEnd;
+              const feedFiberStart = circuit.feedFiberStart || circuit.fiberStart;
+              const feedFiberEnd = circuit.feedFiberEnd || circuit.fiberEnd;
+
+              if (!distFiberStart || !distFiberEnd || !feedFiberStart || !feedFiberEnd) {
+                totalSpliceRows++;
+                return;
+              }
+
+              if (useRibbonView) {
+                let currentDistFiber = distFiberStart;
+                let currentFeedFiber = feedFiberStart;
+
+                while (currentDistFiber <= distFiberEnd) {
+                  const currentDistRibbon = Math.ceil(currentDistFiber / 12);
+                  const currentFeedRibbon = Math.ceil(currentFeedFiber / 12);
+
+                  const distRibbonEnd = currentDistRibbon * 12;
+                  const distSegmentEnd = Math.min(distRibbonEnd, distFiberEnd);
+                  const feedRibbonEnd = currentFeedRibbon * 12;
+                  const feedSegmentEnd = Math.min(feedRibbonEnd, feedFiberEnd);
+
+                  const distFiberCount = distSegmentEnd - currentDistFiber + 1;
+                  const feedFiberCount = feedSegmentEnd - currentFeedFiber + 1;
+                  const segmentFiberCount = Math.min(distFiberCount, feedFiberCount);
+
+                  totalSpliceRows++;
+
+                  currentDistFiber += segmentFiberCount;
+                  currentFeedFiber += segmentFiberCount;
+                }
+              } else {
+                totalSpliceRows += (feedFiberEnd - feedFiberStart + 1);
+              }
+            });
             
             return (
               <TabsContent key={`feed-${feedCable.id}`} value={`feed-splice-${feedCable.id}`}>
@@ -1456,6 +1625,7 @@ export default function Home() {
               setEditingCable(null);
             }}
             isLoading={createCableMutation.isPending || updateCableMutation.isPending}
+            mode={mode}
           />
         </DialogContent>
       </Dialog>

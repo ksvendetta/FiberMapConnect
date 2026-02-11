@@ -2,42 +2,59 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { storage } from "./storage";
 import type { Circuit } from "@shared/schema";
 
+// Extract mode from endpoint (e.g., /api/fiber/cables -> 'fiber', /api/copper/cables -> 'copper')
+export function getModeFromEndpoint(endpoint: string): 'fiber' | 'copper' {
+  if (endpoint.includes('/fiber/')) {
+    return 'fiber';
+  }
+  if (endpoint.includes('/copper/')) {
+    return 'copper';
+  }
+  // Default to fiber for legacy endpoints without mode
+  return 'fiber';
+}
+
 // Storage-based query function (replaces API fetch)
 export const getQueryFn: <T>() => QueryFunction<T> =
   () =>
   async ({ queryKey }) => {
     const [endpoint, ...params] = queryKey as [string, ...any[]];
-    
+    const mode = getModeFromEndpoint(endpoint);
+
     // Map API endpoints to storage methods
-    switch (endpoint) {
-      case '/api/cables':
-        return await storage.getAllCables() as any;
-      case '/api/circuits':
-        return await storage.getAllCircuits() as any;
-      case '/api/circuits/cable':
-        // Get circuits for a specific cable (params[0] is the cable ID)
-        if (params.length > 0) {
-          return await storage.getCircuitsByCableId(params[0]) as any;
-        }
-        throw new Error('Cable ID required for /api/circuits/cable');
-      case '/api/saves':
-        return await storage.getAllSaves() as any;
-      default:
-        // For specific resource queries like /api/cables/:id
-        if (endpoint.startsWith('/api/cables/') && params.length === 0) {
-          const id = endpoint.split('/').pop();
-          return await storage.getCable(id!) as any;
-        }
-        if (endpoint.startsWith('/api/circuits/') && params.length === 0) {
-          const id = endpoint.split('/').pop();
-          return await storage.getCircuit(id!) as any;
-        }
-        if (endpoint.startsWith('/api/saves/') && params.length === 0) {
-          const id = endpoint.split('/').pop();
-          return await storage.getSave(id!) as any;
-        }
-        throw new Error(`Unknown query endpoint: ${endpoint}`);
+    // Handle both legacy (/api/cables) and mode-specific (/api/fiber/cables, /api/copper/cables) endpoints
+    if (endpoint === '/api/cables' || endpoint.match(/\/api\/(fiber|copper)\/cables$/)) {
+      return await storage.getAllCables(mode) as any;
     }
+    if (endpoint === '/api/circuits' || endpoint.match(/\/api\/(fiber|copper)\/circuits$/)) {
+      return await storage.getAllCircuits(mode) as any;
+    }
+    if (endpoint === '/api/circuits/cable' || endpoint.match(/\/api\/(fiber|copper)\/circuits\/cable$/)) {
+      // Get circuits for a specific cable (params[0] is the cable ID)
+      if (params.length > 0) {
+        return await storage.getCircuitsByCableId(params[0], mode) as any;
+      }
+      throw new Error('Cable ID required for circuits/cable endpoint');
+    }
+    if (endpoint === '/api/saves' || endpoint.match(/\/api\/(fiber|copper)\/saves$/)) {
+      return await storage.getAllSaves(mode) as any;
+    }
+
+    // For specific resource queries like /api/cables/:id or /api/fiber/cables/:id
+    if (endpoint.match(/\/api\/(fiber\/|copper\/)?cables\/[^/]+$/) && params.length === 0) {
+      const id = endpoint.split('/').pop();
+      return await storage.getCable(id!, mode) as any;
+    }
+    if (endpoint.match(/\/api\/(fiber\/|copper\/)?circuits\/[^/]+$/) && params.length === 0) {
+      const id = endpoint.split('/').pop();
+      return await storage.getCircuit(id!, mode) as any;
+    }
+    if (endpoint.match(/\/api\/(fiber\/|copper\/)?saves\/[^/]+$/) && params.length === 0) {
+      const id = endpoint.split('/').pop();
+      return await storage.getSave(id!, mode) as any;
+    }
+
+    throw new Error(`Unknown query endpoint: ${endpoint}`);
   };
 
 // Storage-based API request (replaces fetch for mutations)
@@ -46,27 +63,31 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<{ json: () => Promise<any> }> {
+  // Extract mode from URL
+  const mode = getModeFromEndpoint(url);
+
   // Parse the URL and method to determine which storage operation to call
-  const path = url.replace(/^\/api\//, '');
+  // Remove /api/ and optional mode prefix (fiber/ or copper/)
+  const path = url.replace(/^\/api\//, '').replace(/^(fiber|copper)\//, '');
   const [resource, id, ...rest] = path.split('/');
-  
+
   try {
     let result: any;
     
     if (method === 'POST') {
       if (resource === 'cables') {
         const cableData = data as any;
-        result = await storage.createCable(cableData);
-        
+        result = await storage.createCable(cableData, mode);
+
         // If circuitIds are provided, create the circuits
         if (cableData.circuitIds && Array.isArray(cableData.circuitIds) && cableData.circuitIds.length > 0) {
           let currentFiberStart = 1;
-          
+
           for (const circuitId of cableData.circuitIds) {
             // Skip empty lines
             const trimmedCircuitId = circuitId.trim();
             if (!trimmedCircuitId) continue;
-            
+
             // Parse circuit ID to get fiber count (format: "prefix,start-end")
             const parts = trimmedCircuitId.split(',');
             if (parts.length !== 2) continue; // Skip invalid format
@@ -76,13 +97,13 @@ export async function apiRequest(
             const rangeEnd = parseInt(rangeParts[1]);
             if (isNaN(rangeStart) || isNaN(rangeEnd)) continue; // Skip invalid numbers
             const fiberCount = rangeEnd - rangeStart + 1;
-            
+
             const fiberEnd = currentFiberStart + fiberCount - 1;
-            
+
             // Get current circuit count for position
-            const existingCircuits = await storage.getCircuitsByCableId(result.id);
+            const existingCircuits = await storage.getCircuitsByCableId(result.id, mode);
             const position = existingCircuits.length;
-            
+
             // Create the circuit
             await storage.createCircuit({
               cableId: result.id,
@@ -90,17 +111,17 @@ export async function apiRequest(
               position,
               fiberStart: currentFiberStart,
               fiberEnd
-            });
-            
+            }, mode);
+
             currentFiberStart = fiberEnd + 1;
           }
         }
       } else if (resource === 'circuits') {
         // Calculate circuit fiber positions before creating
         const circuitData = data as any;
-        const cable = await storage.getCable(circuitData.cableId);
+        const cable = await storage.getCable(circuitData.cableId, mode);
         if (!cable) throw new Error('Cable not found');
-        
+
         // Parse circuit ID to get fiber count (format: "prefix,start-end")
         const parts = circuitData.circuitId.split(',');
         if (parts.length !== 2) throw new Error('Invalid circuit ID format');
@@ -110,54 +131,54 @@ export async function apiRequest(
         const rangeEnd = parseInt(rangeParts[1]);
         if (isNaN(rangeStart) || isNaN(rangeEnd)) throw new Error('Invalid range values');
         const fiberCount = rangeEnd - rangeStart + 1;
-        
+
         // Get existing circuits to calculate position and fiber start
-        const existingCircuits = await storage.getCircuitsByCableId(circuitData.cableId);
+        const existingCircuits = await storage.getCircuitsByCableId(circuitData.cableId, mode);
         const position = existingCircuits.length;
-        
+
         let fiberStart = 1;
         if (existingCircuits.length > 0) {
           const lastCircuit = existingCircuits[existingCircuits.length - 1];
           fiberStart = lastCircuit.fiberEnd + 1;
         }
-        
+
         const fiberEnd = fiberStart + fiberCount - 1;
-        
+
         // Validate fiber range
         if (fiberEnd > cable.fiberCount) {
           throw new Error(`Circuit requires ${fiberCount} fibers but only ${cable.fiberCount - fiberStart + 1} fibers remaining`);
         }
-        
+
         result = await storage.createCircuit({
           ...circuitData,
           position,
           fiberStart,
           fiberEnd
-        });
+        }, mode);
       } else if (resource === 'saves') {
         if (rest.includes('load')) {
           // Load save
-          await storage.loadSave(id);
+          await storage.loadSave(id, mode);
           result = { success: true };
         } else {
           // Create new save
           const { name } = data as any;
-          result = await storage.createSave(name);
+          result = await storage.createSave(name, mode);
         }
       }
     } else if (method === 'PATCH' || method === 'PUT') {
       if (resource === 'cables') {
         // Update cable
-        await storage.updateCable(id, data as any);
+        await storage.updateCable(id, data as any, mode);
         result = { success: true };
       } else if (resource === 'circuits' && rest.includes('toggle-spliced')) {
         // Toggle splice status
-        const circuit = await storage.getCircuit(id);
+        const circuit = await storage.getCircuit(id, mode);
         if (!circuit) throw new Error('Circuit not found');
-        
+
         const newSplicedStatus = circuit.isSpliced === 1 ? 0 : 1;
         const updateData: any = { isSpliced: newSplicedStatus };
-        
+
         if (newSplicedStatus === 1) {
           // Setting to spliced - include feed cable info
           const { feedCableId, feedFiberStart, feedFiberEnd } = data as any;
@@ -170,16 +191,16 @@ export async function apiRequest(
           updateData.feedFiberStart = null;
           updateData.feedFiberEnd = null;
         }
-        
-        await storage.updateCircuit(id, updateData);
+
+        await storage.updateCircuit(id, updateData, mode);
         result = { success: true };
       } else if (resource === 'circuits' && rest.includes('update-circuit-id')) {
         // Update circuit ID and recalculate all fiber positions
-        const circuit = await storage.getCircuit(id);
+        const circuit = await storage.getCircuit(id, mode);
         if (!circuit) throw new Error('Circuit not found');
         
         const { circuitId: newCircuitId } = data as any;
-        
+
         // Parse new circuit ID to get fiber count
         const parts = newCircuitId.split(',');
         if (parts.length !== 2) throw new Error('Invalid circuit ID format');
@@ -189,51 +210,51 @@ export async function apiRequest(
         const rangeEnd = parseInt(rangeParts[1]);
         if (isNaN(rangeStart) || isNaN(rangeEnd)) throw new Error('Invalid range values');
         const newFiberCount = rangeEnd - rangeStart + 1;
-        
+
         // Update the circuit ID
-        await storage.updateCircuit(id, { circuitId: newCircuitId });
-        
+        await storage.updateCircuit(id, { circuitId: newCircuitId }, mode);
+
         // Recalculate fiber positions for all circuits in this cable using batch update
-        const allCircuits = await storage.getCircuitsByCableId(circuit.cableId);
+        const allCircuits = await storage.getCircuitsByCableId(circuit.cableId, mode);
         let currentFiberStart = 1;
-        
+
         const bulkUpdates: Array<{ id: string; changes: Partial<Circuit> }> = [];
-        
+
         for (const c of allCircuits) {
           const updatedCircuit = c.id === id ? { ...c, circuitId: newCircuitId } : c;
-          
+
           // Skip circuits with empty or invalid circuit IDs
           if (!updatedCircuit.circuitId || !updatedCircuit.circuitId.includes(',')) {
             continue;
           }
-          
+
           // Calculate fiber count from circuit ID
           const cParts = updatedCircuit.circuitId.split(',');
           if (!cParts[1]) continue;
-          
+
           const cRangeParts = cParts[1].split('-');
           if (cRangeParts.length !== 2) continue;
-          
+
           const cStart = parseInt(cRangeParts[0]);
           const cEnd = parseInt(cRangeParts[1]);
           if (isNaN(cStart) || isNaN(cEnd)) continue;
-          
+
           const cFiberCount = cEnd - cStart + 1;
-          
+
           const fiberStart = currentFiberStart;
           const fiberEnd = fiberStart + cFiberCount - 1;
-          
+
           bulkUpdates.push({ id: c.id, changes: { fiberStart, fiberEnd } });
           currentFiberStart = fiberEnd + 1;
         }
-        
-        await storage.bulkUpdateCircuits(bulkUpdates);
-        
+
+        await storage.bulkUpdateCircuits(bulkUpdates, mode);
+
         // Update splice mappings in Distribution circuits that reference this Feed cable
-        const cable = await storage.getCable(circuit.cableId);
+        const cable = await storage.getCable(circuit.cableId, mode);
         if (cable?.type === 'Feed') {
-          const allDistCircuits = await storage.getAllCircuits();
-          const updatedFeedCircuits = await storage.getCircuitsByCableId(circuit.cableId);
+          const allDistCircuits = await storage.getAllCircuits(mode);
+          const updatedFeedCircuits = await storage.getCircuitsByCableId(circuit.cableId, mode);
           const distBulkUpdates: Array<{ id: string; changes: Partial<Circuit> }> = [];
           
           for (const distCircuit of allDistCircuits) {
@@ -246,7 +267,7 @@ export async function apiRequest(
                 if (distRangeParts.length === 2) {
                   const distStart = parseInt(distRangeParts[0]);
                   const distEnd = parseInt(distRangeParts[1]);
-                  
+
                   // Find matching Feed circuit
                   for (const feedCircuit of updatedFeedCircuits) {
                     const feedParts = feedCircuit.circuitId.split(',');
@@ -257,7 +278,7 @@ export async function apiRequest(
                         if (feedRangeParts.length === 2) {
                           const feedStart = parseInt(feedRangeParts[0]);
                           const feedEnd = parseInt(feedRangeParts[1]);
-                          
+
                           // Check if Distribution range is within Feed range
                           if (distStart >= feedStart && distEnd <= feedEnd) {
                             // Recalculate the Feed fiber positions for this Distribution circuit
@@ -265,7 +286,7 @@ export async function apiRequest(
                             const offsetFromFeedEnd = distEnd - feedStart;
                             const newFeedFiberStart = feedCircuit.fiberStart + offsetFromFeedStart;
                             const newFeedFiberEnd = feedCircuit.fiberStart + offsetFromFeedEnd;
-                            
+
                             distBulkUpdates.push({
                               id: distCircuit.id,
                               changes: { feedFiberStart: newFeedFiberStart, feedFiberEnd: newFeedFiberEnd }
@@ -280,24 +301,24 @@ export async function apiRequest(
               }
             }
           }
-          
+
           if (distBulkUpdates.length > 0) {
-            await storage.bulkUpdateCircuits(distBulkUpdates);
+            await storage.bulkUpdateCircuits(distBulkUpdates, mode);
           }
         }
-        
+
         result = { success: true };
       } else if (resource === 'circuits' && rest.includes('move')) {
         // Move circuit up or down and recalculate positions
         const { direction } = data as any;
-        const circuit = await storage.getCircuit(id);
+        const circuit = await storage.getCircuit(id, mode);
         if (!circuit) throw new Error('Circuit not found');
-        
-        const allCircuits = await storage.getCircuitsByCableId(circuit.cableId);
+
+        const allCircuits = await storage.getCircuitsByCableId(circuit.cableId, mode);
         const currentIndex = allCircuits.findIndex(c => c.id === id);
-        
+
         if (currentIndex === -1) throw new Error('Circuit not found in cable');
-        
+
         // Determine new index
         let newIndex = currentIndex;
         if (direction === 'up' && currentIndex > 0) {
@@ -307,55 +328,55 @@ export async function apiRequest(
         } else {
           throw new Error('Cannot move circuit in that direction');
         }
-        
+
         // Swap positions
         const temp = allCircuits[currentIndex];
         allCircuits[currentIndex] = allCircuits[newIndex];
         allCircuits[newIndex] = temp;
-        
+
         // Update position values and recalculate fiber positions using batch update
         let currentFiberStart = 1;
         const moveBulkUpdates: Array<{ id: string; changes: Partial<Circuit> }> = [];
-        
+
         for (let i = 0; i < allCircuits.length; i++) {
           const c = allCircuits[i];
-          
+
           // Skip circuits with empty or invalid circuit IDs
           if (!c.circuitId || !c.circuitId.includes(',')) {
             continue;
           }
-          
+
           // Calculate fiber count from circuit ID
           const parts = c.circuitId.split(',');
           if (!parts[1]) continue;
-          
+
           const rangeParts = parts[1].split('-');
           if (rangeParts.length !== 2) continue;
-          
+
           const rangeStart = parseInt(rangeParts[0]);
           const rangeEnd = parseInt(rangeParts[1]);
           if (isNaN(rangeStart) || isNaN(rangeEnd)) continue;
-          
+
           const fiberCount = rangeEnd - rangeStart + 1;
-          
+
           const fiberStart = currentFiberStart;
           const fiberEnd = fiberStart + fiberCount - 1;
-          
-          moveBulkUpdates.push({ 
-            id: c.id, 
+
+          moveBulkUpdates.push({
+            id: c.id,
             changes: { position: i, fiberStart, fiberEnd }
           });
-          
+
           currentFiberStart = fiberEnd + 1;
         }
-        
-        await storage.bulkUpdateCircuits(moveBulkUpdates);
-        
+
+        await storage.bulkUpdateCircuits(moveBulkUpdates, mode);
+
         // Update splice mappings in Distribution circuits that reference this Feed cable
-        const cable = await storage.getCable(circuit.cableId);
+        const cable = await storage.getCable(circuit.cableId, mode);
         if (cable?.type === 'Feed') {
-          const allDistCircuits = await storage.getAllCircuits();
-          const updatedFeedCircuits = await storage.getCircuitsByCableId(circuit.cableId);
+          const allDistCircuits = await storage.getAllCircuits(mode);
+          const updatedFeedCircuits = await storage.getCircuitsByCableId(circuit.cableId, mode);
           const moveDistBulkUpdates: Array<{ id: string; changes: Partial<Circuit> }> = [];
           
           for (const distCircuit of allDistCircuits) {
@@ -368,7 +389,7 @@ export async function apiRequest(
                 if (distRangeParts.length === 2) {
                   const distStart = parseInt(distRangeParts[0]);
                   const distEnd = parseInt(distRangeParts[1]);
-                  
+
                   // Find matching Feed circuit
                   for (const feedCircuit of updatedFeedCircuits) {
                     const feedParts = feedCircuit.circuitId.split(',');
@@ -379,7 +400,7 @@ export async function apiRequest(
                         if (feedRangeParts.length === 2) {
                           const feedStart = parseInt(feedRangeParts[0]);
                           const feedEnd = parseInt(feedRangeParts[1]);
-                          
+
                           // Check if Distribution range is within Feed range
                           if (distStart >= feedStart && distEnd <= feedEnd) {
                             // Recalculate the Feed fiber positions for this Distribution circuit
@@ -387,7 +408,7 @@ export async function apiRequest(
                             const offsetFromFeedEnd = distEnd - feedStart;
                             const newFeedFiberStart = feedCircuit.fiberStart + offsetFromFeedStart;
                             const newFeedFiberEnd = feedCircuit.fiberStart + offsetFromFeedEnd;
-                            
+
                             moveDistBulkUpdates.push({
                               id: distCircuit.id,
                               changes: { feedFiberStart: newFeedFiberStart, feedFiberEnd: newFeedFiberEnd }
@@ -402,35 +423,35 @@ export async function apiRequest(
               }
             }
           }
-          
+
           if (moveDistBulkUpdates.length > 0) {
-            await storage.bulkUpdateCircuits(moveDistBulkUpdates);
+            await storage.bulkUpdateCircuits(moveDistBulkUpdates, mode);
           }
         }
-        
+
         result = { success: true };
       } else if (resource === 'circuits') {
-        await storage.updateCircuit(id, data as any);
+        await storage.updateCircuit(id, data as any, mode);
         result = { success: true };
       }
     } else if (method === 'DELETE') {
       if (resource === 'reset') {
         // Reset all data in IndexedDB
-        await storage.resetAllData();
+        await storage.resetAllData(mode);
         result = { success: true };
       } else if (resource === 'cables') {
-        await storage.deleteCable(id);
+        await storage.deleteCable(id, mode);
         result = { success: true };
       } else if (resource === 'circuits') {
-        await storage.deleteCircuit(id);
+        await storage.deleteCircuit(id, mode);
         result = { success: true };
       } else if (resource === 'saves') {
         if (id === 'load') {
           const { id: saveId } = data as any;
-          await storage.loadSave(saveId);
+          await storage.loadSave(saveId, mode);
           result = { success: true };
         } else {
-          await storage.deleteSave(id);
+          await storage.deleteSave(id, mode);
           result = { success: true };
         }
       }

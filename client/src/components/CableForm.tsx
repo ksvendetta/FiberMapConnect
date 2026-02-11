@@ -30,9 +30,10 @@ interface CableFormProps {
   onSubmit: (data: InsertCable) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  mode?: "fiber" | "copper";
 }
 
-export function CableForm({ cable, onSubmit, onCancel, isLoading }: CableFormProps) {
+export function CableForm({ cable, onSubmit, onCancel, isLoading, mode = "fiber" }: CableFormProps) {
   const [ocrDialogOpen, setOcrDialogOpen] = useState(false);
   
   const form = useForm<InsertCable>({
@@ -43,7 +44,7 @@ export function CableForm({ cable, onSubmit, onCancel, isLoading }: CableFormPro
       type: cable.type as "Feed" | "Distribution",
     } : {
       name: "",
-      fiberCount: 24,
+      fiberCount: mode === "fiber" ? 24 : 50,
       type: "Feed",
       circuitIds: [],
     },
@@ -109,11 +110,11 @@ export function CableForm({ cable, onSubmit, onCancel, isLoading }: CableFormPro
           name="fiberCount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Fiber Count</FormLabel>
+              <FormLabel>{mode === "fiber" ? "Fiber Count" : "Pair Count"}</FormLabel>
               <FormControl>
                 <Input
                   type="number"
-                  placeholder="e.g., 24, 48, 72"
+                  placeholder={mode === "fiber" ? "e.g., 24, 48, 72" : "e.g., 25, 50, 100"}
                   {...field}
                   onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                   data-testid="input-fiber-count"
@@ -158,7 +159,7 @@ export function CableForm({ cable, onSubmit, onCancel, isLoading }: CableFormPro
                   />
                 </FormControl>
                 <FormDescription className="text-xs">
-                  Use spaces or standard format (prefix,start-end). Fiber positions will be auto-calculated.
+                  Use spaces or standard format (prefix,start-end). {mode === "fiber" ? "Fiber" : "Pair"} positions will be auto-calculated.
                 </FormDescription>
                 <FormMessage />
               </FormItem>

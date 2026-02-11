@@ -11,9 +11,10 @@ interface CableCardProps {
   onEdit: () => void;
   onDelete: () => void;
   isValid: boolean;
+  mode?: "fiber" | "copper";
 }
 
-export function CableCard({ cable, isSelected, onSelect, onEdit, onDelete, isValid }: CableCardProps) {
+export function CableCard({ cable, isSelected, onSelect, onEdit, onDelete, isValid, mode = "fiber" }: CableCardProps) {
   const bgColor = cable.type === "Feed" 
     ? "bg-green-50 dark:bg-green-950/30" 
     : "bg-blue-50 dark:bg-blue-950/30";
@@ -68,7 +69,7 @@ export function CableCard({ cable, isSelected, onSelect, onEdit, onDelete, isVal
             <div>
               <span className="text-muted-foreground">Cable Size:</span>
               <span className="ml-1 font-mono font-medium" data-testid={`text-cable-fiber-count-${cable.id}`}>
-                {cable.fiberCount}
+                {cable.fiberCount} {mode === "fiber" ? "fibers" : "pairs"}
               </span>
             </div>
           </div>

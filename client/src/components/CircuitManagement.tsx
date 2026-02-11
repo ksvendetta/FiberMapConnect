@@ -23,9 +23,10 @@ import { normalizeCircuitId } from "@/lib/circuitIdUtils";
 
 interface CircuitManagementProps {
   cable: Cable;
+  mode?: "fiber" | "copper";
 }
 
-export function CircuitManagement({ cable }: CircuitManagementProps) {
+export function CircuitManagement({ cable, mode = "fiber" }: CircuitManagementProps) {
   const { toast } = useToast();
   const [circuitId, setCircuitId] = useState("");
   const [editingCircuitId, setEditingCircuitId] = useState<string | null>(null);
@@ -33,25 +34,25 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
   const [ocrDialogOpen, setOcrDialogOpen] = useState(false);
 
   const { data: circuits = [], isLoading } = useQuery<Circuit[]>({
-    queryKey: ["/api/circuits/cable", cable.id],
+    queryKey: [`/api/${mode}/circuits/cable`, cable.id],
   });
 
   const { data: allCables = [] } = useQuery<Cable[]>({
-    queryKey: ["/api/cables"],
+    queryKey: [`/api/${mode}/cables`],
   });
 
   const { data: allCircuits = [] } = useQuery<Circuit[]>({
-    queryKey: ["/api/circuits"],
+    queryKey: [`/api/${mode}/circuits`],
   });
 
   const createCircuitMutation = useMutation({
     mutationFn: async (data: InsertCircuit) => {
-      return await apiRequest("POST", "/api/circuits", data);
+      return await apiRequest("POST", `/api/${mode}/circuits`, data);
     },
     onSuccess: async () => {
       // Force refetch to update UI
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits/cable", cable.id] });
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits"] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits/cable`, cable.id] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits`] });
       setCircuitId("");
       toast({ title: "Circuit added successfully" });
     },
@@ -66,19 +67,19 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
 
   const deleteCircuitMutation = useMutation({
     mutationFn: async (id: string) => {
-      return await apiRequest("DELETE", `/api/circuits/${id}`, undefined);
+      return await apiRequest("DELETE", `/api/${mode}/circuits/${id}`, undefined);
     },
     onSuccess: async () => {
       // Force refetch to update UI
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits/cable", cable.id] });
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits"] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits/cable`, cable.id] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits`] });
       toast({ title: "Circuit deleted successfully" });
     },
     onError: async (error: any) => {
       // If circuit doesn't exist (404), still remove from UI
       if (error?.message?.includes("not found") || error?.message?.includes("404")) {
-        await queryClient.refetchQueries({ queryKey: ["/api/circuits/cable", cable.id] });
-        await queryClient.refetchQueries({ queryKey: ["/api/circuits"] });
+        await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits/cable`, cable.id] });
+        await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits`] });
         toast({ title: "Circuit removed from display" });
       } else {
         toast({ title: "Failed to delete circuit", variant: "destructive" });
@@ -87,34 +88,34 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
   });
 
   const toggleSplicedMutation = useMutation({
-    mutationFn: async ({ circuitId, feedCableId, feedFiberStart, feedFiberEnd }: { 
-      circuitId: string; 
+    mutationFn: async ({ circuitId, feedCableId, feedFiberStart, feedFiberEnd }: {
+      circuitId: string;
       feedCableId?: string;
       feedFiberStart?: number;
       feedFiberEnd?: number;
     }) => {
-      return await apiRequest("PATCH", `/api/circuits/${circuitId}/toggle-spliced`, { 
-        feedCableId, 
-        feedFiberStart, 
-        feedFiberEnd 
+      return await apiRequest("PATCH", `/api/${mode}/circuits/${circuitId}/toggle-spliced`, {
+        feedCableId,
+        feedFiberStart,
+        feedFiberEnd
       });
     },
     onSuccess: async () => {
       // Force refetch to update UI
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits/cable", cable.id] });
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits"] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits/cable`, cable.id] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits`] });
     },
     onError: async (error: any) => {
       // If circuit doesn't exist (404), refresh the UI
       if (error?.message?.includes("not found") || error?.message?.includes("404")) {
-        await queryClient.refetchQueries({ queryKey: ["/api/circuits/cable", cable.id] });
-        await queryClient.refetchQueries({ queryKey: ["/api/circuits"] });
+        await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits/cable`, cable.id] });
+        await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits`] });
         toast({ title: "Circuit not found - display refreshed", variant: "destructive" });
       } else {
-        toast({ 
+        toast({
           title: "Failed to toggle splice status",
           description: error.message || "An error occurred",
-          variant: "destructive" 
+          variant: "destructive"
         });
       }
     },
@@ -122,12 +123,12 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
 
   const updateCircuitIdMutation = useMutation({
     mutationFn: async ({ id, circuitId }: { id: string; circuitId: string }) => {
-      return await apiRequest("PATCH", `/api/circuits/${id}/update-circuit-id`, { circuitId });
+      return await apiRequest("PATCH", `/api/${mode}/circuits/${id}/update-circuit-id`, { circuitId });
     },
     onSuccess: async () => {
       // Force refetch to update UI with recalculated fiber positions
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits/cable", cable.id] });
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits"] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits/cable`, cable.id] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits`] });
       setEditingCircuitId(null);
       setEditingCircuitValue("");
       toast({ title: "Circuit ID updated successfully" });
@@ -143,12 +144,12 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
 
   const moveCircuitMutation = useMutation({
     mutationFn: async ({ id, direction }: { id: string; direction: "up" | "down" }) => {
-      return await apiRequest("PATCH", `/api/circuits/${id}/move`, { direction });
+      return await apiRequest("PATCH", `/api/${mode}/circuits/${id}/move`, { direction });
     },
     onSuccess: async () => {
       // Force refetch to update UI with new positions and recalculated fiber positions
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits/cable", cable.id] });
-      await queryClient.refetchQueries({ queryKey: ["/api/circuits"] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits/cable`, cable.id] });
+      await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits`] });
       toast({ title: "Circuit moved successfully" });
     },
     onError: () => {
@@ -156,7 +157,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
     },
   });
 
-  const handleCheckboxChange = (circuit: Circuit, checked: boolean) => {
+  const handleCheckboxChange = async (circuit: Circuit, checked: boolean) => {
     if (cable.type === "Distribution" && checked) {
       // Parse Distribution circuit ID to extract prefix and range
       const distParts = circuit.circuitId.split(',');
@@ -167,7 +168,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
         });
         return;
       }
-      
+
       const distributionPrefix = distParts[0].trim();
       const distRangeParts = distParts[1].trim().split('-');
       if (distRangeParts.length !== 2) {
@@ -177,38 +178,47 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
         });
         return;
       }
-      
+
       const distStart = parseInt(distRangeParts[0]);
       const distEnd = parseInt(distRangeParts[1]);
-      
-      // Find matching circuit in Feed cables where the Distribution range is within the Feed range
-      const matchingFeedCircuit = allCircuits.find(c => {
+
+      console.log(`[SPLICE] Checking circuit: ${circuit.circuitId}, distStart: ${distStart}, distEnd: ${distEnd}`);
+
+      // Find ALL matching feed circuits that this distribution range overlaps with
+      const matchingFeedCircuits = allCircuits.filter(c => {
         const feedCable = allCables.find(cable => cable.id === c.cableId);
         if (feedCable?.type !== "Feed") return false;
-        
+
         // Parse Feed circuit ID
         const feedParts = c.circuitId.split(',');
         if (feedParts.length !== 2) return false;
-        
+
         const feedPrefix = feedParts[0].trim();
-        
+
         // Check if prefixes match
         if (feedPrefix !== distributionPrefix) return false;
-        
+
         // Parse Feed range
         const feedRangeParts = feedParts[1].trim().split('-');
         if (feedRangeParts.length !== 2) return false;
-        
+
         const feedStart = parseInt(feedRangeParts[0]);
         const feedEnd = parseInt(feedRangeParts[1]);
-        
-        // Check if Distribution range is within Feed range
-        const isWithinRange = distStart >= feedStart && distEnd <= feedEnd;
-        
-        return isWithinRange;
+
+        // Check if distribution range overlaps with this feed range
+        const overlaps = distStart <= feedEnd && distEnd >= feedStart;
+
+        console.log(`[SPLICE] Checking feed circuit: ${c.circuitId}, feedStart: ${feedStart}, feedEnd: ${feedEnd}, overlaps: ${overlaps}`);
+
+        return overlaps;
+      }).sort((a, b) => {
+        // Sort by feed range start to process in order
+        const aStart = parseInt(a.circuitId.split(',')[1].trim().split('-')[0]);
+        const bStart = parseInt(b.circuitId.split(',')[1].trim().split('-')[0]);
+        return aStart - bStart;
       });
 
-      if (!matchingFeedCircuit) {
+      if (matchingFeedCircuits.length === 0) {
         toast({
           title: "No matching Feed circuit found",
           description: `Could not find a Feed circuit with prefix "${distributionPrefix}" that contains the range ${distStart}-${distEnd}`,
@@ -217,29 +227,187 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
         return;
       }
 
-      // Get the Feed cable for this circuit
-      const feedCable = allCables.find(c => c.id === matchingFeedCircuit.cableId);
-      
-      // Parse Feed circuit range to calculate the specific fiber subset
-      const feedParts = matchingFeedCircuit.circuitId.split(',');
-      const feedRangeParts = feedParts[1].trim().split('-');
-      const feedStart = parseInt(feedRangeParts[0]);
-      const feedEnd = parseInt(feedRangeParts[1]);
-      
-      // Calculate offset: where does the Distribution range start within the Feed range?
-      const offsetFromFeedStart = distStart - feedStart;
-      const offsetFromFeedEnd = distEnd - feedStart;
-      
-      // Calculate the actual Feed fiber positions for this subset
-      const calculatedFeedFiberStart = matchingFeedCircuit.fiberStart + offsetFromFeedStart;
-      const calculatedFeedFiberEnd = matchingFeedCircuit.fiberStart + offsetFromFeedEnd;
-      
-      toggleSplicedMutation.mutate({
-        circuitId: circuit.id,
-        feedCableId: feedCable?.id,
-        feedFiberStart: calculatedFeedFiberStart,
-        feedFiberEnd: calculatedFeedFiberEnd,
-      });
+      console.log(`[SPLICE] Found ${matchingFeedCircuits.length} matching feed circuit(s)`);
+
+      // If circuit spans multiple feeds, we need to split it
+      if (matchingFeedCircuits.length > 1) {
+        console.log(`[SPLICE] Circuit spans multiple feeds - splitting...`);
+
+        // Calculate split points
+        const splits: Array<{
+          start: number;
+          end: number;
+          feedCircuit: Circuit;
+          feedCable: Cable | undefined;
+        }> = [];
+
+        for (let i = 0; i < matchingFeedCircuits.length; i++) {
+          const feedCircuit = matchingFeedCircuits[i];
+          const feedCable = allCables.find(c => c.id === feedCircuit.cableId);
+          const feedParts = feedCircuit.circuitId.split(',');
+          const feedRangeParts = feedParts[1].trim().split('-');
+          const feedStart = parseInt(feedRangeParts[0]);
+          const feedEnd = parseInt(feedRangeParts[1]);
+
+          // Calculate the portion of distribution that overlaps with this feed
+          const splitStart = Math.max(distStart, feedStart);
+          const splitEnd = Math.min(distEnd, feedEnd);
+
+          splits.push({
+            start: splitStart,
+            end: splitEnd,
+            feedCircuit,
+            feedCable
+          });
+        }
+
+        // Update the original circuit to become the first split, then create additional splits
+        try {
+          // First split: update the existing circuit
+          const firstSplit = splits[0];
+          const firstCircuitId = `${distributionPrefix},${firstSplit.start}-${firstSplit.end}`;
+
+          console.log(`[SPLICE] Updating original circuit to: ${firstCircuitId}`);
+
+          // Update the circuit ID
+          await apiRequest("PATCH", `/api/${mode}/circuits/${circuit.id}/update-circuit-id`, {
+            circuitId: firstCircuitId
+          });
+
+          // Calculate feed fiber positions for first split
+          const firstFeedStart = parseInt(firstSplit.feedCircuit.circuitId.split(',')[1].trim().split('-')[0]);
+          const firstOffsetFromFeedStart = firstSplit.start - firstFeedStart;
+          const firstOffsetFromFeedEnd = firstSplit.end - firstFeedStart;
+          const firstCalculatedFeedFiberStart = firstSplit.feedCircuit.fiberStart + firstOffsetFromFeedStart;
+          const firstCalculatedFeedFiberEnd = firstSplit.feedCircuit.fiberStart + firstOffsetFromFeedEnd;
+
+          console.log(`[SPLICE] Splicing ${firstCircuitId} to ${firstSplit.feedCable?.name}: fibers ${firstCalculatedFeedFiberStart}-${firstCalculatedFeedFiberEnd}`);
+
+          // Mark first split as spliced
+          await apiRequest("PATCH", `/api/${mode}/circuits/${circuit.id}/toggle-spliced`, {
+            feedCableId: firstSplit.feedCable?.id,
+            feedFiberStart: firstCalculatedFeedFiberStart,
+            feedFiberEnd: firstCalculatedFeedFiberEnd
+          });
+
+          // Get current circuits to determine positioning
+          const originalPosition = circuits.findIndex((c: Circuit) => c.id === circuit.id);
+
+          // Create additional split circuits for remaining splits
+          for (let i = 1; i < splits.length; i++) {
+            const split = splits[i];
+            const newCircuitId = `${distributionPrefix},${split.start}-${split.end}`;
+
+            console.log(`[SPLICE] Creating split circuit: ${newCircuitId}`);
+
+            // Create the new circuit - the POST returns the newly created circuit
+            const response = await apiRequest("POST", `/api/${mode}/circuits`, {
+              cableId: circuit.cableId,
+              circuitId: newCircuitId
+            });
+            const newCircuit = await response.json();
+
+            console.log(`[SPLICE] newCircuit:`, newCircuit);
+
+            if (newCircuit && newCircuit.id) {
+              console.log(`[SPLICE] Successfully created circuit with ID: ${newCircuit.id}`);
+
+              // Calculate feed fiber positions
+              const feedStart = parseInt(split.feedCircuit.circuitId.split(',')[1].trim().split('-')[0]);
+              const offsetFromFeedStart = split.start - feedStart;
+              const offsetFromFeedEnd = split.end - feedStart;
+              const calculatedFeedFiberStart = split.feedCircuit.fiberStart + offsetFromFeedStart;
+              const calculatedFeedFiberEnd = split.feedCircuit.fiberStart + offsetFromFeedEnd;
+
+              console.log(`[SPLICE] Splicing ${newCircuitId} to ${split.feedCable?.name}: fibers ${calculatedFeedFiberStart}-${calculatedFeedFiberEnd}`);
+
+              try {
+                // Mark as spliced - use toggle-spliced which will set isSpliced to 1
+                await apiRequest("PATCH", `/api/${mode}/circuits/${newCircuit.id}/toggle-spliced`, {
+                  feedCableId: split.feedCable?.id,
+                  feedFiberStart: calculatedFeedFiberStart,
+                  feedFiberEnd: calculatedFeedFiberEnd
+                });
+                console.log(`[SPLICE] Successfully spliced ${newCircuitId}`);
+              } catch (error) {
+                console.error(`[SPLICE] Error splicing ${newCircuitId}:`, error);
+                throw error;
+              }
+
+              // Move the new circuit to be right after the previous split
+              // The new circuit is created at the end, so we need to move it up
+              try {
+                // Refetch circuits to get updated positions
+                await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits/cable`, cable.id] });
+                const updatedCircuits = queryClient.getQueryData<Circuit[]>([`/api/${mode}/circuits/cable`, cable.id]) || [];
+                const newCircuitPosition = updatedCircuits.findIndex((c: Circuit) => c.id === newCircuit.id);
+                const targetPosition = originalPosition + i; // Position after the original
+
+                console.log(`[SPLICE] Moving circuit from position ${newCircuitPosition} to ${targetPosition}`);
+
+                // Move up until it reaches the target position
+                const movesNeeded = newCircuitPosition - targetPosition;
+                for (let j = 0; j < movesNeeded; j++) {
+                  await apiRequest("PATCH", `/api/${mode}/circuits/${newCircuit.id}/move`, {
+                    direction: "up"
+                  });
+                }
+                console.log(`[SPLICE] Successfully moved ${newCircuitId}`);
+              } catch (error) {
+                console.error(`[SPLICE] Error moving ${newCircuitId}:`, error);
+                // Don't throw - movement is not critical
+              }
+            }
+          }
+
+          // Refresh the UI
+          await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits/cable`, cable.id] });
+          await queryClient.refetchQueries({ queryKey: [`/api/${mode}/circuits`] });
+
+          toast({
+            title: "Circuit split and spliced",
+            description: `Created ${splits.length} circuit(s) spanning ${matchingFeedCircuits.length} feed cable(s)`,
+          });
+        } catch (error) {
+          console.error('[SPLICE] Error splitting circuit:', error);
+          toast({
+            title: "Failed to split circuit",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // Single feed cable - process normally
+        const matchingFeedCircuit = matchingFeedCircuits[0];
+        const feedCable = allCables.find(c => c.id === matchingFeedCircuit.cableId);
+
+        console.log(`[SPLICE] Matched feed circuit: ${matchingFeedCircuit.circuitId} on cable: ${feedCable?.name}`);
+
+        // Parse Feed circuit range to calculate the specific fiber subset
+        const feedParts = matchingFeedCircuit.circuitId.split(',');
+        const feedRangeParts = feedParts[1].trim().split('-');
+        const feedStart = parseInt(feedRangeParts[0]);
+        const feedEnd = parseInt(feedRangeParts[1]);
+
+        // Calculate offset
+        const offsetFromFeedStart = distStart - feedStart;
+        const offsetFromFeedEnd = distEnd - feedStart;
+
+        console.log(`[SPLICE] feedStart: ${feedStart}, feedEnd: ${feedEnd}`);
+        console.log(`[SPLICE] offsetFromFeedStart: ${offsetFromFeedStart}, offsetFromFeedEnd: ${offsetFromFeedEnd}`);
+
+        // Calculate the actual Feed fiber positions for this subset
+        const calculatedFeedFiberStart = matchingFeedCircuit.fiberStart + offsetFromFeedStart;
+        const calculatedFeedFiberEnd = matchingFeedCircuit.fiberStart + offsetFromFeedEnd;
+
+        console.log(`[SPLICE] calculatedFeedFiberStart: ${calculatedFeedFiberStart}, calculatedFeedFiberEnd: ${calculatedFeedFiberEnd}`);
+
+        toggleSplicedMutation.mutate({
+          circuitId: circuit.id,
+          feedCableId: feedCable?.id,
+          feedFiberStart: calculatedFeedFiberStart,
+          feedFiberEnd: calculatedFeedFiberEnd,
+        });
+      }
     } else {
       // Unchecking - just toggle without feed cable info
       toggleSplicedMutation.mutate({ circuitId: circuit.id });
@@ -392,48 +560,131 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
     { name: "aqua", bg: "bg-cyan-400", text: "text-black", colorClass: "text-cyan-500" },
   ];
 
+  // 25-pair copper cable color codes (tip/ring combinations with actual hex colors)
+  const pairColors = [
+    { name: "W-Bl", tipColor: "#f1f5f9", ringColor: "#3b82f6", textColor: "#ffffff", colorClass: "text-blue-500" },
+    { name: "W-Or", tipColor: "#f1f5f9", ringColor: "#f97316", textColor: "#ffffff", colorClass: "text-orange-500" },
+    { name: "W-Gr", tipColor: "#f1f5f9", ringColor: "#16a34a", textColor: "#ffffff", colorClass: "text-green-600" },
+    { name: "W-Br", tipColor: "#f1f5f9", ringColor: "#b45309", textColor: "#ffffff", colorClass: "text-amber-700" },
+    { name: "W-Sl", tipColor: "#f1f5f9", ringColor: "#64748b", textColor: "#ffffff", colorClass: "text-slate-500" },
+    { name: "R-Bl", tipColor: "#dc2626", ringColor: "#3b82f6", textColor: "#ffffff", colorClass: "text-blue-500" },
+    { name: "R-Or", tipColor: "#dc2626", ringColor: "#f97316", textColor: "#ffffff", colorClass: "text-orange-500" },
+    { name: "R-Gr", tipColor: "#dc2626", ringColor: "#16a34a", textColor: "#ffffff", colorClass: "text-green-600" },
+    { name: "R-Br", tipColor: "#dc2626", ringColor: "#b45309", textColor: "#ffffff", colorClass: "text-amber-700" },
+    { name: "R-Sl", tipColor: "#dc2626", ringColor: "#64748b", textColor: "#ffffff", colorClass: "text-slate-500" },
+    { name: "Bk-Bl", tipColor: "#0f172a", ringColor: "#3b82f6", textColor: "#ffffff", colorClass: "text-blue-500" },
+    { name: "Bk-Or", tipColor: "#0f172a", ringColor: "#f97316", textColor: "#ffffff", colorClass: "text-orange-500" },
+    { name: "Bk-Gr", tipColor: "#0f172a", ringColor: "#16a34a", textColor: "#ffffff", colorClass: "text-green-600" },
+    { name: "Bk-Br", tipColor: "#0f172a", ringColor: "#b45309", textColor: "#ffffff", colorClass: "text-amber-700" },
+    { name: "Bk-Sl", tipColor: "#0f172a", ringColor: "#64748b", textColor: "#ffffff", colorClass: "text-slate-500" },
+    { name: "Y-Bl", tipColor: "#facc15", ringColor: "#3b82f6", textColor: "#ffffff", colorClass: "text-blue-500" },
+    { name: "Y-Or", tipColor: "#facc15", ringColor: "#f97316", textColor: "#ffffff", colorClass: "text-orange-500" },
+    { name: "Y-Gr", tipColor: "#facc15", ringColor: "#16a34a", textColor: "#ffffff", colorClass: "text-green-600" },
+    { name: "Y-Br", tipColor: "#facc15", ringColor: "#b45309", textColor: "#ffffff", colorClass: "text-amber-700" },
+    { name: "Y-Sl", tipColor: "#facc15", ringColor: "#64748b", textColor: "#ffffff", colorClass: "text-slate-500" },
+    { name: "V-Bl", tipColor: "#9333ea", ringColor: "#3b82f6", textColor: "#ffffff", colorClass: "text-blue-500" },
+    { name: "V-Or", tipColor: "#9333ea", ringColor: "#f97316", textColor: "#ffffff", colorClass: "text-orange-500" },
+    { name: "V-Gr", tipColor: "#9333ea", ringColor: "#16a34a", textColor: "#ffffff", colorClass: "text-green-600" },
+    { name: "V-Br", tipColor: "#9333ea", ringColor: "#b45309", textColor: "#ffffff", colorClass: "text-amber-700" },
+    { name: "V-Sl", tipColor: "#9333ea", ringColor: "#64748b", textColor: "#ffffff", colorClass: "text-slate-500" },
+  ];
+
+  // Helper to create gradient matching copper splice pattern (tip-ring-tip striping)
+  const makeGradient = (color: typeof pairColors[number]) => ({
+    background: `linear-gradient(to right,
+      ${color.tipColor} 0%,
+      ${color.tipColor} 20%,
+      ${color.ringColor} 20%,
+      ${color.ringColor} 80%,
+      ${color.tipColor} 80%,
+      ${color.tipColor} 100%)`,
+    color: color.textColor
+  });
+
   const getColorForNumber = (num: number) => {
-    if (num < 1) {
-      console.error(`Invalid fiber/ribbon number: ${num}`);
-      return fiberColors[0]; // Default to blue
+    if (mode === 'copper') {
+      if (num < 1) {
+        console.error(`Invalid pair/binder number: ${num}`);
+        return pairColors[0]; // Default to first pair
+      }
+      return pairColors[(num - 1) % 25];
+    } else {
+      if (num < 1) {
+        console.error(`Invalid fiber/ribbon number: ${num}`);
+        return fiberColors[0]; // Default to blue
+      }
+      return fiberColors[(num - 1) % 12];
     }
-    return fiberColors[(num - 1) % 12];
   };
 
   const getRibbonAndStrandDisplay = (fiberStart: number, fiberEnd: number, ribbonSize: number) => {
     const startRibbon = Math.ceil(fiberStart / ribbonSize);
     const endRibbon = Math.ceil(fiberEnd / ribbonSize);
-    
+
     const startStrand = ((fiberStart - 1) % ribbonSize) + 1;
     const endStrand = ((fiberEnd - 1) % ribbonSize) + 1;
-    
+
+    const containerLabel = mode === 'copper' ? 'B' : 'R'; // Binder vs Ribbon
+
     const ColoredRibbon = ({ num }: { num: number }) => {
       const color = getColorForNumber(num);
-      // R6 is white - use inverted styling for better visibility
-      const isR6 = (num - 1) % 12 === 5; // Index 5 = white
-      
-      if (isR6) {
+
+      // For copper mode, use striped gradient for binder labels with proper text contrast
+      if (mode === 'copper') {
+        const copperColor = color as typeof pairColors[number];
+        const gradient = makeGradient(copperColor);
         return (
-          <span className="inline-block px-2 py-0.5 rounded border-2 border-black bg-slate-300 text-white font-mono font-semibold text-xs">
-            R{num}
+          <span
+            className="inline-block px-2 py-0.5 rounded border-2 border-black font-mono font-semibold text-xs"
+            style={gradient}
+          >
+            {containerLabel}{num}
           </span>
         );
       }
-      
+
+      // Fiber mode styling
+      const needsInvertedStyle = (num - 1) % 12 === 5; // Index 5 = white for fiber
+
+      if (needsInvertedStyle) {
+        return (
+          <span className="inline-block px-2 py-0.5 rounded border-2 border-black bg-slate-300 text-white font-mono font-semibold text-xs">
+            {containerLabel}{num}
+          </span>
+        );
+      }
+
       return (
         <span className={`inline-block px-2 py-0.5 rounded border-2 ${color.colorClass} font-mono font-semibold text-xs`} style={{ borderColor: 'currentColor' }}>
-          R{num}
+          {containerLabel}{num}
         </span>
       );
     };
-    
+
     const ColoredStrand = ({ num }: { num: number }) => {
       const color = getColorForNumber(num);
-      return (
-        <span className={`inline-block px-2 py-0.5 rounded border border-black ${color.bg} ${color.text} font-mono font-semibold text-xs`}>
-          {num}
-        </span>
-      );
+
+      // For copper mode, use striped gradient with proper text contrast
+      if (mode === 'copper') {
+        const copperColor = color as typeof pairColors[number];
+        const gradient = makeGradient(copperColor);
+        return (
+          <span
+            className="inline-block px-2 py-0.5 rounded border border-black font-mono font-semibold text-xs"
+            style={gradient}
+          >
+            {num}
+          </span>
+        );
+      } else {
+        // Fiber mode - use original solid color with Tailwind classes
+        const fiberColor = color as { bg: string; text: string };
+        return (
+          <span className={`inline-block px-2 py-0.5 rounded border border-black ${fiberColor.bg} ${fiberColor.text} font-mono font-semibold text-xs`}>
+            {num}
+          </span>
+        );
+      }
     };
     
     if (startRibbon === endRibbon) {
@@ -558,7 +809,7 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
             </Badge>
           )}
           <span className="text-sm text-muted-foreground" data-testid="text-cable-size">
-            Total Fiber Count: {totalAssignedFibers}/{cable.fiberCount}
+            {mode === "fiber" ? "Total Fiber Count" : "Total Pair Count"}: {totalAssignedFibers}/{cable.fiberCount}
           </span>
         </div>
       </CardHeader>
@@ -606,8 +857,8 @@ export function CircuitManagement({ cable }: CircuitManagementProps) {
                     <TableHead className="w-[10%]">Splice</TableHead>
                   )}
                   <TableHead className={cable.type === "Distribution" ? "w-[30%]" : "w-[35%]"}>Circuit ID</TableHead>
-                  <TableHead>Fiber Strands</TableHead>
-                  <TableHead className="w-[12%]">Fiber Count</TableHead>
+                  <TableHead>{mode === "fiber" ? "Fiber Strands" : "Pair Strands"}</TableHead>
+                  <TableHead className="w-[12%]">{mode === "fiber" ? "Fiber Count" : "Pair Count"}</TableHead>
                   <TableHead className="w-[15%] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
